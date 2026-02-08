@@ -8,6 +8,20 @@ import { resolveWorkingDir } from './path-guard.js'
 
 const exec = promisify(execCb)
 
+const DENY_PATTERNS: RegExp[] = [
+  /\brm\s+-[\w-]*r[\w-]*f?[\w-]*/i,
+  /\bshutdown\b/i,
+  /\breboot\b/i,
+  /\bpoweroff\b/i,
+  /\bdd\s+if=/i,
+  /\bmkfs\b/i,
+  /\bformat\b/i
+]
+
+function isCommandBlocked(command: string): boolean {
+  return DENY_PATTERNS.some((pattern) => pattern.test(command))
+}
+
 /** Builds the shell execution tool with a configurable timeout. */
 export function createExecTool(timeoutSec: number): ToolDefinition {
   return {
@@ -25,6 +39,10 @@ export function createExecTool(timeoutSec: number): ToolDefinition {
             working_dir: z.string().optional()
           })
           .parse(input)
+
+        if (isCommandBlocked(parsed.command)) {
+          return 'Error: command blocked by safety policy'
+        }
 
         const cwd = resolveWorkingDir(ctx.workspace, parsed.working_dir)
 

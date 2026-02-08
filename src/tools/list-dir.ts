@@ -1,9 +1,9 @@
 import { readdir } from 'node:fs/promises'
-import { resolve } from 'node:path'
 
 import { z } from 'zod/v4'
 
 import type { ToolDefinition } from '../core/tool-registry.js'
+import { resolveWorkspacePath } from './path-guard.js'
 
 /** Lists files/directories under a workspace-relative path. */
 export const listDirTool: ToolDefinition = {
@@ -13,13 +13,17 @@ export const listDirTool: ToolDefinition = {
     path: z.string()
   },
   async execute(input, ctx) {
-    const parsed = z.object({ path: z.string() }).parse(input)
-    const target = resolve(ctx.workspace, parsed.path)
-    const entries = await readdir(target, { withFileTypes: true })
-    if (!entries.length) return '(empty)'
+    try {
+      const parsed = z.object({ path: z.string() }).parse(input)
+      const target = resolveWorkspacePath(ctx.workspace, parsed.path)
+      const entries = await readdir(target, { withFileTypes: true })
+      if (!entries.length) return '(empty)'
 
-    return entries
-      .map((entry) => `${entry.isDirectory() ? 'DIR ' : 'FILE'} ${entry.name}`)
-      .join('\n')
+      return entries
+        .map((entry) => `${entry.isDirectory() ? 'DIR ' : 'FILE'} ${entry.name}`)
+        .join('\n')
+    } catch (error) {
+      return `Error: ${error instanceof Error ? error.message : String(error)}`
+    }
   }
 }

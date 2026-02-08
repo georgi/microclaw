@@ -3,6 +3,7 @@
  * Prefers newline boundaries when available.
  */
 export function chunkText(text: string, maxLen: number): string[] {
+  if (maxLen <= 0) throw new Error('maxLen must be greater than zero')
   if (text.length <= maxLen) return [text]
 
   const chunks: string[] = []

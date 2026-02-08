@@ -15,7 +15,15 @@ const DENY_PATTERNS: RegExp[] = [
   /\bpoweroff\b/i,
   /\bdd\s+if=/i,
   /\bmkfs\b/i,
-  /\bformat\b/i
+  /\bformat\b/i,
+  /\bchmod\s+[0-7]{3,4}\s+\//i,
+  /\bchown\s+/i,
+  /\bfind\b.*\s-delete\b/i,
+  /\bcurl\b.*\|\s*\bsh\b/i,
+  /\bwget\b.*\|\s*\bsh\b/i,
+  /:\(\)\s*\{.*\|.*&\s*\}\s*;/,
+  />\s*\/dev\/[sh]d/i,
+  /\bnc\s+-[\w]*l/i
 ]
 
 function isCommandBlocked(command: string): boolean {

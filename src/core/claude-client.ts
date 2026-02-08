@@ -56,7 +56,19 @@ export class ClaudeClient {
       () => this.activeToolContext,
       this.logger
     )
-    this.transcript = new TranscriptLogger(this.config.transcriptLog)
+
+    const transcriptOptions = {
+      enabled: this.config.transcriptLog.enabled,
+      path: this.config.transcriptLog.path,
+      ...(this.config.transcriptLog.maxBytes != null
+        ? { maxBytes: this.config.transcriptLog.maxBytes }
+        : {}),
+      ...(this.config.transcriptLog.maxFiles != null
+        ? { maxFiles: this.config.transcriptLog.maxFiles }
+        : {})
+    }
+
+    this.transcript = new TranscriptLogger(transcriptOptions)
   }
 
   /**

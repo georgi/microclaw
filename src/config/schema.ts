@@ -23,9 +23,16 @@ export const configSchema = z.object({
   transcriptLog: z
     .object({
       enabled: z.boolean().default(false),
-      path: z.string()
+      path: z.string(),
+      maxBytes: z.number().int().positive().optional(),
+      maxFiles: z.number().int().positive().optional()
     })
-    .default({ enabled: false, path: `${process.cwd()}/data/transcript.jsonl` }),
+    .default({
+      enabled: false,
+      path: `${process.cwd()}/data/transcript.jsonl`,
+      maxBytes: 1_000_000,
+      maxFiles: 3
+    }),
   sessionStorePath: z.string(),
   maxToolIterations: z.number().int().positive().default(20)
 })

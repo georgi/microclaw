@@ -39,7 +39,13 @@ export function loadConfig(): MicroclawConfig {
     transcriptLog: {
       enabled: process.env.MICROCLAW_TRANSCRIPT_LOG_ENABLED === 'true',
       path:
-        process.env.MICROCLAW_TRANSCRIPT_LOG_PATH ?? `${process.cwd()}/data/transcript.jsonl`
+        process.env.MICROCLAW_TRANSCRIPT_LOG_PATH ?? `${process.cwd()}/data/transcript.jsonl`,
+      maxBytes: process.env.MICROCLAW_TRANSCRIPT_LOG_MAX_BYTES
+        ? Number(process.env.MICROCLAW_TRANSCRIPT_LOG_MAX_BYTES)
+        : 1_000_000,
+      maxFiles: process.env.MICROCLAW_TRANSCRIPT_LOG_MAX_FILES
+        ? Number(process.env.MICROCLAW_TRANSCRIPT_LOG_MAX_FILES)
+        : 3
     },
     sessionStorePath:
       process.env.MICROCLAW_SESSION_STORE_PATH ?? `${process.cwd()}/data/sessions.json`,

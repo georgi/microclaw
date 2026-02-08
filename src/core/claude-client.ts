@@ -10,6 +10,7 @@ import type { MicroclawConfig } from '../config/schema.js'
 import type { ToolRegistry } from './tool-registry.js'
 import { createToolMcpServer } from './mcp-server.js'
 import { SessionStore } from './session-store.js'
+import { TranscriptLogger } from './transcript-logger.js'
 import type { Logger, ToolContext } from './types.js'
 
 type AssistantTextBlock = { type: 'text'; text: string }
@@ -41,6 +42,7 @@ function getAssistantText(msg: SDKMessage): string {
 export class ClaudeClient {
   private readonly sessions = new Map<string, SDKSession>()
   private readonly mcpServer: McpSdkServerConfigWithInstance
+  private readonly transcript: TranscriptLogger
   private activeToolContext: ToolContext | null = null
 
   constructor(
@@ -54,6 +56,7 @@ export class ClaudeClient {
       () => this.activeToolContext,
       this.logger
     )
+    this.transcript = new TranscriptLogger(this.config.transcriptLog)
   }
 
   /**
@@ -67,15 +70,24 @@ export class ClaudeClient {
     this.activeToolContext = context
 
     try {
+      await this.transcript.log(conversationKey, { type: 'user', text: userText })
       await session.send(userText)
 
       for await (const msg of session.stream()) {
         const sid = extractSessionId(msg)
         if (sid) observedSessionId = sid
 
+        await this.transcript.log(conversationKey, { type: msg.type })
+
         if (msg.type === 'assistant') {
           const assistantText = getAssistantText(msg)
-          if (assistantText) responseText = assistantText
+          if (assistantText) {
+            responseText = assistantText
+            await this.transcript.log(conversationKey, {
+              type: 'assistant_text',
+              text: assistantText
+            })
+          }
         }
 
         if (msg.type === 'result') {

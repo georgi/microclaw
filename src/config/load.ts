@@ -36,6 +36,11 @@ export function loadConfig(): MicroclawConfig {
       execTimeoutSec: Number(process.env.MICROCLAW_EXEC_TIMEOUT_SEC ?? 60),
       webSearchApiKey: process.env.MICROCLAW_WEB_SEARCH_API_KEY
     },
+    transcriptLog: {
+      enabled: process.env.MICROCLAW_TRANSCRIPT_LOG_ENABLED === 'true',
+      path:
+        process.env.MICROCLAW_TRANSCRIPT_LOG_PATH ?? `${process.cwd()}/data/transcript.jsonl`
+    },
     sessionStorePath:
       process.env.MICROCLAW_SESSION_STORE_PATH ?? `${process.cwd()}/data/sessions.json`,
     maxToolIterations: Number(process.env.MICROCLAW_MAX_TOOL_ITERATIONS ?? 20)

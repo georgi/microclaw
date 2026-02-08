@@ -20,6 +20,12 @@ export const configSchema = z.object({
     execTimeoutSec: z.number().int().positive(),
     webSearchApiKey: z.string().optional()
   }),
+  transcriptLog: z
+    .object({
+      enabled: z.boolean().default(false),
+      path: z.string()
+    })
+    .default({ enabled: false, path: `${process.cwd()}/data/transcript.jsonl` }),
   sessionStorePath: z.string(),
   maxToolIterations: z.number().int().positive().default(20)
 })

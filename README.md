@@ -5,6 +5,7 @@ TypeScript reimplementation of nanobot core flows using Claude Agent SDK V2.
 ## Current State
 
 This repository includes a working local runtime with:
+- 
 - real Telegram inbound/outbound integration (Bot API long polling)
 - real Discord inbound/outbound integration (`discord.js` gateway client)
 - Claude SDK V2 multi-turn session handling with session resume persistence
@@ -32,7 +33,7 @@ This repository includes a working local runtime with:
 | Summary prompt templating | Implemented | Request-aware template expansion |
 | Transcript logging toggle | Implemented | Optional JSONL event stream |
 | Transcript rotation | Implemented | Size-based file rotation with suffixes (`.1`, `.2`, ...) |
-| Acceptance harness | Implemented | Telegram summary flow test |
+| Acceptance harness | Implemented | Telegram and Discord summary flow tests |
 | `spawn` subagents | Out of scope | Deferred by PRD |
 | cron/heartbeat | Out of scope | Deferred by PRD |
 | media ingestion | Out of scope | Text-only v1 |
@@ -193,6 +194,7 @@ Per your requirement, implementation follows this order for each task:
 - `/Users/mg/workspace/microclaw/tests/transcript-rotation.test.ts`
 - `/Users/mg/workspace/microclaw/tests/config.test.ts`
 - `/Users/mg/workspace/microclaw/tests/acceptance-telegram-summary.test.ts`
+- `/Users/mg/workspace/microclaw/tests/acceptance-discord-summary.test.ts`
 
 ## Setup
 

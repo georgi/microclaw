@@ -22,7 +22,7 @@ const DENY_PATTERNS: RegExp[] = [
   /\bcurl\b.*\|\s*\bsh\b/i,
   /\bwget\b.*\|\s*\bsh\b/i,
   /:\(\)\s*\{.*\|.*&\s*\}\s*;/,
-  />\s*\/dev\/[sh]d/i,
+  />\s*\/dev\/(?:[sh]d|nvme|vd|xvd|loop)/i,
   /\bnc\s+-[\w]*l/i
 ]
 

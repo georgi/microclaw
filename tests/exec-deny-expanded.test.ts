@@ -70,11 +70,13 @@ describe('exec expanded deny patterns', () => {
     const workspace = await setupWorkspace()
     const execTool = createExecTool(5)
 
-    const result = await execTool.execute(
-      { command: 'echo data > /dev/sda' },
-      { workspace, channel: 'telegram', chatId: 'c1' }
-    )
-    expect(result).toContain('command blocked by safety policy')
+    for (const device of ['/dev/sda', '/dev/hda', '/dev/nvme0n1', '/dev/vda', '/dev/xvda', '/dev/loop0']) {
+      const result = await execTool.execute(
+        { command: `echo data > ${device}` },
+        { workspace, channel: 'telegram', chatId: 'c1' }
+      )
+      expect(result, `should block write to ${device}`).toContain('command blocked by safety policy')
+    }
   })
 
   it('blocks nc listener (reverse shell)', async () => {

@@ -32,6 +32,11 @@ export class SessionStore {
     return this.map[conversationKey]
   }
 
+  /** Returns a shallow copy of all session entries. */
+  entries(): Readonly<SessionMap> {
+    return { ...this.map }
+  }
+
   /** Upserts conversation mapping and persists to disk atomically. */
   async set(conversationKey: string, sessionId: string): Promise<void> {
     this.map[conversationKey] = {

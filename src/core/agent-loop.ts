@@ -1,3 +1,4 @@
+import type { CommandHandler } from '../commands/handler.js'
 import type { ClaudePipeConfig } from '../config/schema.js'
 import { applySummaryTemplate } from './prompt-template.js'
 import { MessageBus } from './bus.js'
@@ -8,10 +9,12 @@ import type { AgentTurnUpdate, InboundMessage, Logger } from './types.js'
  * Central message-processing loop.
  *
  * Consumes inbound chat events, executes one Claude turn, and publishes outbound replies.
+ * When a {@link CommandHandler} is provided it intercepts slash-commands before they reach the LLM.
  */
 export class AgentLoop {
   private running = false
   private readonly lastProgressByConversation = new Map<string, { key: string; at: number }>()
+  private commandHandler: CommandHandler | null = null
 
   constructor(
     private readonly bus: MessageBus,
@@ -19,6 +22,11 @@ export class AgentLoop {
     private readonly claude: ClaudeClient,
     private readonly logger: Logger
   ) {}
+
+  /** Attaches a command handler for slash-command interception. */
+  setCommandHandler(handler: CommandHandler): void {
+    this.commandHandler = handler
+  }
 
   /** Starts the infinite processing loop. */
   async start(): Promise<void> {
@@ -47,17 +55,6 @@ export class AgentLoop {
     this.claude.closeAll()
   }
 
-  private isNewSessionCommand(input: string): boolean {
-    const value = input.trim().toLowerCase()
-    return (
-      value === '/new' ||
-      value === '/newsession' ||
-      value === '/new_session' ||
-      value === '/reset' ||
-      value === '/reset_session'
-    )
-  }
-
   private async processMessage(inbound: InboundMessage): Promise<void> {
     const conversationKey = `${inbound.channel}:${inbound.chatId}`
     this.logger.info('agent.inbound', {
@@ -65,15 +62,22 @@ export class AgentLoop {
       senderId: inbound.senderId
     })
 
-    if (this.isNewSessionCommand(inbound.content)) {
-      await this.claude.startNewSession(conversationKey)
-      await this.bus.publishOutbound({
-        channel: inbound.channel,
-        chatId: inbound.chatId,
-        content: 'Started a new session for this chat.'
-      })
-      this.logger.info('agent.new_session', { conversationKey })
-      return
+    if (this.commandHandler) {
+      const result = await this.commandHandler.execute(
+        inbound.content,
+        inbound.channel,
+        inbound.chatId,
+        inbound.senderId
+      )
+      if (result) {
+        await this.bus.publishOutbound({
+          channel: inbound.channel,
+          chatId: inbound.chatId,
+          content: result.content
+        })
+        this.logger.info('agent.command', { conversationKey, content: inbound.content })
+        return
+      }
     }
 
     const modelInput = applySummaryTemplate(

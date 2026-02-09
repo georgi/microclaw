@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AgentLoop } from '../src/core/agent-loop.js'
 import { MessageBus } from '../src/core/bus.js'
+import { CommandHandler, CommandRegistry, sessionNewCommand } from '../src/commands/index.js'
 import type { ClaudePipeConfig } from '../src/config/schema.js'
 
 function makeConfig(): ClaudePipeConfig {
@@ -70,6 +71,11 @@ describe('AgentLoop', () => {
     const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 
     const loop = new AgentLoop(bus, makeConfig(), claude as never, logger)
+
+    const registry = new CommandRegistry()
+    registry.register(sessionNewCommand(claude.startNewSession))
+    loop.setCommandHandler(new CommandHandler(registry))
+
     const run = loop.start()
 
     await bus.publishInbound({

@@ -1,4 +1,4 @@
-import type { MicroclawConfig } from '../config/schema.js'
+import type { ClaudePipeConfig } from '../config/schema.js'
 import { MessageBus } from '../core/bus.js'
 import type { Logger } from '../core/types.js'
 import type { Channel } from './base.js'
@@ -13,7 +13,7 @@ export class ChannelManager {
   private dispatcherRunning = false
 
   constructor(
-    config: MicroclawConfig,
+    config: ClaudePipeConfig,
     private readonly bus: MessageBus,
     private readonly logger: Logger
   ) {

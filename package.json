@@ -1,5 +1,5 @@
 {
-  "name": "microclaw",
+  "name": "claude-pipe",
   "version": "0.1.0",
   "private": true,
   "description": "TypeScript reimplementation of nanobot core flows using Claude Code CLI stream-json subprocesses",

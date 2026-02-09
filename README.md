@@ -1,4 +1,4 @@
-# microclaw
+# claude-pipe
 
 TypeScript reimplementation of nanobot core flows using Claude Code CLI stream-json subprocesses.
 
@@ -65,7 +65,7 @@ Telegram/Discord send
 - Examples: `telegram:123456789`, `discord:1122334455`
 
 ### Session persistence
-- File: `MICROCLAW_SESSION_STORE_PATH`
+- File: `CLAUDEPIPE_SESSION_STORE_PATH`
 - Data shape:
 
 ```json
@@ -93,15 +93,15 @@ Template variables:
 - `{{request}}`
 
 Config:
-- `MICROCLAW_SUMMARY_PROMPT_ENABLED`
-- `MICROCLAW_SUMMARY_PROMPT_TEMPLATE`
+- `CLAUDEPIPE_SUMMARY_PROMPT_ENABLED`
+- `CLAUDEPIPE_SUMMARY_PROMPT_TEMPLATE`
 
 ### Transcript logging and rotation (optional)
 When enabled, runtime writes JSONL entries for user/assistant/system stream events.
-- `MICROCLAW_TRANSCRIPT_LOG_ENABLED=true`
-- `MICROCLAW_TRANSCRIPT_LOG_PATH=/absolute/path/to/transcript.jsonl`
-- `MICROCLAW_TRANSCRIPT_LOG_MAX_BYTES=1000000`
-- `MICROCLAW_TRANSCRIPT_LOG_MAX_FILES=3`
+- `CLAUDEPIPE_TRANSCRIPT_LOG_ENABLED=true`
+- `CLAUDEPIPE_TRANSCRIPT_LOG_PATH=/absolute/path/to/transcript.jsonl`
+- `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_BYTES=1000000`
+- `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_FILES=3`
 
 Rotation behavior:
 - when current transcript exceeds `MAX_BYTES`, it rotates
@@ -111,7 +111,7 @@ Rotation behavior:
 Default transcript logging is disabled.
 
 ### Claude CLI streaming behavior
-Microclaw executes Claude as a subprocess with:
+Claude Pipe executes Claude as a subprocess with:
 - `--print`
 - `--output-format stream-json`
 - `--resume <session_id>` when a saved session exists
@@ -134,7 +134,7 @@ Per your requirement, implementation follows this order for each task:
 
 1. Copy env template:
 ```bash
-cp /Users/mg/workspace/microclaw/.env.example /Users/mg/workspace/microclaw/.env
+cp /Users/mg/workspace/claude-pipe/.env.example /Users/mg/workspace/claude-pipe/.env
 ```
 
 2. Fill required values in `.env`:
@@ -148,7 +148,7 @@ cp /Users/mg/workspace/microclaw/.env.example /Users/mg/workspace/microclaw/.env
 
 3. Install and validate:
 ```bash
-cd /Users/mg/workspace/microclaw
+cd /Users/mg/workspace/claude-pipe
 npm install
 npm run test:run
 npm run build

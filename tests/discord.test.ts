@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { DiscordChannel } from '../src/channels/discord.js'
 import { MessageBus } from '../src/core/bus.js'
-import type { MicroclawConfig } from '../src/config/schema.js'
+import type { ClaudePipeConfig } from '../src/config/schema.js'
 
-function makeConfig(): MicroclawConfig {
+function makeConfig(): ClaudePipeConfig {
   return {
     model: 'claude-sonnet-4-5',
     workspace: '/tmp/workspace',

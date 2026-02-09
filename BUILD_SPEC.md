@@ -1,8 +1,8 @@
-# Microclaw Build Spec (v1)
+# Claude Pipe Build Spec (v1)
 
 - Status: Ready for implementation
 - Date: 2026-02-08
-- Source of truth: `/Users/mg/workspace/microclaw/PRD.md`
+- Source of truth: `/Users/mg/workspace/claude-pipe/PRD.md`
 
 ## 1. Goals
 Build a local TypeScript bot that reimplements nanobot core flows for Telegram and Discord using Claude Agent SDK V2 with per-channel session continuity.
@@ -22,7 +22,7 @@ Build a local TypeScript bot that reimplements nanobot core flows for Telegram a
 ## 3. Proposed Repository Layout
 
 ```text
-microclaw/
+claude-pipe/
   package.json
   tsconfig.json
   .env.example
@@ -104,7 +104,7 @@ export type SessionMap = Record<string, SessionRecord>
 
 ```ts
 // src/config/schema.ts
-export interface MicroclawConfig {
+export interface ClaudePipeConfig {
   model: 'claude-sonnet-4-5'
   workspace: string
   channels: {
@@ -262,5 +262,5 @@ Do not log secrets or full file contents.
 
 ## 18. Definition of Done
 - All acceptance tests above pass locally.
-- PRD in `/Users/mg/workspace/microclaw/PRD.md` remains consistent with implementation.
+- PRD in `/Users/mg/workspace/claude-pipe/PRD.md` remains consistent with implementation.
 - Build spec checkpoints are traceable in code modules.

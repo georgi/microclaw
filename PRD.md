@@ -1,4 +1,4 @@
-# Microclaw PRD (v1)
+# Claude Pipe PRD (v1)
 
 - Status: Approved for planning
 - Date: 2026-02-08
@@ -7,7 +7,7 @@
 - LLM runtime: Claude Agent SDK V2 preview
 
 ## 1. Product Summary
-Microclaw is a local, single-user TypeScript bot that reimplements nanobot core flows for Telegram and Discord using the Claude Agent SDK V2 session model.
+Claude Pipe is a local, single-user TypeScript bot that reimplements nanobot core flows for Telegram and Discord using the Claude Agent SDK V2 session model.
 
 ## 2. Objective
 Deliver nanobot-style core behavior for:

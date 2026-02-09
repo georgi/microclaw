@@ -7,7 +7,7 @@ const channelSchema = z.object({
 })
 
 /**
- * Runtime configuration schema for Microclaw.
+ * Runtime configuration schema for Claude Pipe.
  */
 export const configSchema = z.object({
   model: z.string(),
@@ -51,4 +51,4 @@ export const configSchema = z.object({
   maxToolIterations: z.number().int().positive().default(20)
 })
 
-export type MicroclawConfig = z.infer<typeof configSchema>
+export type ClaudePipeConfig = z.infer<typeof configSchema>

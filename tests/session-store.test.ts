@@ -8,7 +8,7 @@ import { SessionStore } from '../src/core/session-store.js'
 
 describe('SessionStore', () => {
   it('persists and reloads session records', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'microclaw-test-'))
+    const dir = await mkdtemp(join(tmpdir(), 'claude-pipe-test-'))
     const path = join(dir, 'sessions.json')
 
     const store = new SessionStore(path)
@@ -24,7 +24,7 @@ describe('SessionStore', () => {
   })
 
   it('clears an existing session record', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'microclaw-test-'))
+    const dir = await mkdtemp(join(tmpdir(), 'claude-pipe-test-'))
     const path = join(dir, 'sessions.json')
 
     const store = new SessionStore(path)

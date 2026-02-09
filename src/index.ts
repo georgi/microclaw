@@ -6,7 +6,7 @@ import { ClaudeClient } from './core/claude-client.js'
 import { logger } from './core/logger.js'
 import { SessionStore } from './core/session-store.js'
 
-/** Boots the Microclaw runtime and starts channel + agent loops. */
+/** Boots the Claude Pipe runtime and starts channel + agent loops. */
 async function main(): Promise<void> {
   const config = loadConfig()
   const bus = new MessageBus()

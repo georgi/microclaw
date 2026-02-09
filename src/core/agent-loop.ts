@@ -1,4 +1,4 @@
-import type { MicroclawConfig } from '../config/schema.js'
+import type { ClaudePipeConfig } from '../config/schema.js'
 import { applySummaryTemplate } from './prompt-template.js'
 import { MessageBus } from './bus.js'
 import { ClaudeClient } from './claude-client.js'
@@ -15,7 +15,7 @@ export class AgentLoop {
 
   constructor(
     private readonly bus: MessageBus,
-    private readonly config: MicroclawConfig,
+    private readonly config: ClaudePipeConfig,
     private readonly claude: ClaudeClient,
     private readonly logger: Logger
   ) {}

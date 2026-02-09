@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import type { MicroclawConfig } from '../config/schema.js'
+import type { ClaudePipeConfig } from '../config/schema.js'
 import { SessionStore } from './session-store.js'
 import { TranscriptLogger } from './transcript-logger.js'
 import type { AgentTurnUpdate, Logger, ToolContext } from './types.js'
@@ -66,7 +66,7 @@ export class ClaudeClient {
   private readonly transcript: TranscriptLogger
 
   constructor(
-    private readonly config: MicroclawConfig,
+    private readonly config: ClaudePipeConfig,
     private readonly store: SessionStore,
     private readonly logger: Logger
   ) {

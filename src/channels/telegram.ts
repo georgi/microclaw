@@ -1,4 +1,4 @@
-import type { MicroclawConfig } from '../config/schema.js'
+import type { ClaudePipeConfig } from '../config/schema.js'
 import { MessageBus } from '../core/bus.js'
 import { retry } from '../core/retry.js'
 import { chunkText } from '../core/text-chunk.js'
@@ -34,7 +34,7 @@ export class TelegramChannel implements Channel {
   private pendingTyping = new Set<string>()
 
   constructor(
-    private readonly config: MicroclawConfig,
+    private readonly config: ClaudePipeConfig,
     private readonly bus: MessageBus,
     private readonly logger: Logger
   ) {}

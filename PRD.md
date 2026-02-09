@@ -7,10 +7,10 @@
 - LLM runtime: Claude Code CLI via subprocess (stream-json)
 
 ## 1. Product Summary
-Claude Pipe is a local, single-user TypeScript bot that reimplements nanobot core flows for Telegram and Discord using Claude Code CLI subprocesses with stream-json output for session management.
+Claude Pipe is a local, single-user TypeScript bot for Telegram and Discord using Claude Code CLI subprocesses with stream-json output for session management. Inspired by the architecture and patterns from [openclaw/openclaw](https://github.com/openclaw/openclaw).
 
 ## 2. Objective
-Deliver nanobot-style core behavior for:
+Deliver core agent behavior for:
 - agent loop
 - tool calling
 - workspace management

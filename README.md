@@ -1,6 +1,6 @@
 # claude-pipe
 
-TypeScript reimplementation of nanobot core flows using Claude Code CLI stream-json subprocesses.
+TypeScript bot for Telegram and Discord using Claude Code CLI stream-json subprocesses. Inspired by [openclaw/openclaw](https://github.com/openclaw/openclaw).
 
 ## Current State
 

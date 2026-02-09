@@ -5,7 +5,7 @@
 - Source of truth: `/Users/mg/workspace/claude-pipe/PRD.md`
 
 ## 1. Goals
-Build a local TypeScript bot that reimplements nanobot core flows for Telegram and Discord using Claude Agent SDK V2 with per-channel session continuity.
+Build a local TypeScript bot for Telegram and Discord using Claude Code CLI with per-channel session continuity. Inspired by the agent loop patterns from [openclaw/openclaw](https://github.com/openclaw/openclaw).
 
 ## 2. Locked Decisions
 - Channels: Telegram + Discord.

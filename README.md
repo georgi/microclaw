@@ -1,181 +1,104 @@
 # claude-pipe
 
-TypeScript bot for Telegram and Discord using Claude Code CLI stream-json subprocesses. Inspired by [openclaw/openclaw](https://github.com/openclaw/openclaw).
+Talk to [Claude Code](https://docs.anthropic.com/en/docs/claude-code) through Telegram or Discord. Send a message, and Claude responds — with full access to read files, run commands, and work with your codebase.
 
-## Current State
+Built with TypeScript. Runs locally on your machine. Inspired by [openclaw/openclaw](https://github.com/openclaw/openclaw).
 
-This repository includes a working local runtime with:
-- real Telegram inbound/outbound integration (Bot API long polling)
-- real Discord inbound/outbound integration (`discord.js` gateway client)
-- Claude CLI turn execution with session resume persistence
-- workspace boundary guardrails for file and shell tools
-- outbound response chunking for Telegram and Discord limits
-- channel send retry/backoff policy for transient failures
-- configurable summary prompt templating for workspace-summary requests
-- optional transcript logging toggle (off by default)
-- streamed progress updates for important events (tool calls, turn start)
-- size-based transcript rotation policy
-- unit and acceptance-style tests
+## What it does
 
-## Implemented vs Pending
+Claude Pipe connects your chat apps to the Claude Code CLI. When you send a message in Telegram or Discord, it:
 
-| Area | Status | Notes |
-|---|---|---|
-| Config loading/validation | Implemented | `zod` schema + `.env` mapping |
-| Session persistence | Implemented | JSON map: `conversation_key -> session_id` |
-| Agent loop | Implemented | Inbound -> Claude turn -> outbound |
-| Claude CLI sessioning | Implemented | `claude --print --output-format stream-json` with `--resume` |
-| Tool calling | Implemented | Claude CLI built-in tools via subprocess |
-| Telegram adapter | Implemented | Long polling + sendMessage + chunking + retry |
-| Discord adapter | Implemented | Gateway message events + channel send + chunking + retry |
-| Tool safety boundaries | Implemented | Workspace path guards + exec deny patterns |
-| Summary prompt templating | Implemented | Request-aware template expansion |
-| Transcript logging toggle | Implemented | Optional JSONL event stream |
-| Transcript rotation | Implemented | Size-based file rotation with suffixes (`.1`, `.2`, ...) |
-| Acceptance harness | Implemented | Telegram and Discord summary flow tests |
-| `spawn` subagents | Out of scope | Deferred by PRD |
-| cron/heartbeat | Out of scope | Deferred by PRD |
-| media ingestion | Out of scope | Text-only v1 |
+1. Picks up your message
+2. Passes it to Claude (with access to your workspace)
+3. Sends Claude's response back to the chat
 
-## Architecture
+Claude remembers previous messages in the conversation, so you can have ongoing back-and-forth sessions. It can read and edit files, run shell commands, and search the web — all the things Claude Code normally does, but triggered from your chat app.
 
-```text
-Telegram/Discord adapters
-        |
-        v
-    MessageBus (inbound)
-        |
-        v
-      AgentLoop
-        |
-        v
-    ClaudeClient (CLI subprocess)
-        |
-        v
-    MessageBus (outbound)
-        |
-        v
-Telegram/Discord send
-```
+## Getting started
 
-## Runtime Contracts
+You'll need [Node.js](https://nodejs.org/) 20+ and the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed.
 
-### Conversation key
-- Format: `channel:chat_id`
-- Examples: `telegram:123456789`, `discord:1122334455`
+**1. Clone and install**
 
-### Session persistence
-- File: `CLAUDEPIPE_SESSION_STORE_PATH`
-- Data shape:
-
-```json
-{
-  "telegram:123456": {
-    "sessionId": "...",
-    "updatedAt": "2026-02-08T12:00:00.000Z"
-  }
-}
-```
-
-### Tool context per turn
-Each tool executes with:
-- `workspace`
-- `channel`
-- `chatId`
-
-This allows the `message` tool to route back to the active conversation by default.
-
-### Summary prompt templating
-For summary-like requests (e.g., "summarize files in workspace"), `AgentLoop` can transform user input using a template before sending to Claude.
-
-Template variables:
-- `{{workspace}}`
-- `{{request}}`
-
-Config:
-- `CLAUDEPIPE_SUMMARY_PROMPT_ENABLED`
-- `CLAUDEPIPE_SUMMARY_PROMPT_TEMPLATE`
-
-### Transcript logging and rotation (optional)
-When enabled, runtime writes JSONL entries for user/assistant/system stream events.
-- `CLAUDEPIPE_TRANSCRIPT_LOG_ENABLED=true`
-- `CLAUDEPIPE_TRANSCRIPT_LOG_PATH=/absolute/path/to/transcript.jsonl`
-- `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_BYTES=1000000`
-- `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_FILES=3`
-
-Rotation behavior:
-- when current transcript exceeds `MAX_BYTES`, it rotates
-- current file becomes `.1`, older `.1` becomes `.2`, etc.
-- keeps up to `MAX_FILES` rotated files
-
-Default transcript logging is disabled.
-
-### Claude CLI streaming behavior
-Claude Pipe executes Claude as a subprocess with:
-- `--print`
-- `--output-format stream-json`
-- `--resume <session_id>` when a saved session exists
-
-Progress updates are streamed to channels for important events such as tool calls.
-
-Guardrails:
-- File tools enforce workspace-bound paths.
-- `exec` enforces workspace-bounded `working_dir` and deny-pattern command blocking.
-
-## Test-First Workflow
-
-Per your requirement, implementation follows this order for each task:
-1. add or update tests first
-2. implement or refactor code
-3. run tests and build
-4. commit the completed step
-
-## Setup
-
-1. Copy env template:
 ```bash
-cp /Users/mg/workspace/claude-pipe/.env.example /Users/mg/workspace/claude-pipe/.env
-```
-
-2. Fill required values in `.env`:
-- Telegram token and/or Discord token
-- allow lists as needed
-- workspace path
-- optional Brave search key
-- optional summary prompt template settings
-- optional transcript logging + rotation settings
-- subprocess-based Claude CLI execution settings
-
-3. Install and validate:
-```bash
-cd /Users/mg/workspace/claude-pipe
+git clone https://github.com/georgi/claude-pipe.git
+cd claude-pipe
 npm install
-npm run test:run
-npm run build
 ```
 
-4. Run:
+**2. Configure**
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in the values:
+
+- **`CLAUDEPIPE_WORKSPACE`** — the directory Claude can access (e.g. your project folder)
+- **`CLAUDEPIPE_TELEGRAM_ENABLED`** / **`CLAUDEPIPE_DISCORD_ENABLED`** — turn on the channels you want
+- **`CLAUDEPIPE_TELEGRAM_TOKEN`** / **`CLAUDEPIPE_DISCORD_TOKEN`** — bot tokens from [BotFather](https://t.me/botfather) or the [Discord Developer Portal](https://discord.com/developers/applications)
+- **`CLAUDEPIPE_TELEGRAM_ALLOW_FROM`** / **`CLAUDEPIPE_DISCORD_ALLOW_FROM`** — restrict who can talk to the bot (leave empty to allow everyone)
+
+See `.env.example` for all available options, including transcript logging and summary prompt templates.
+
+**3. Run**
+
 ```bash
 npm run dev
 ```
 
-## Operational Notes
+That's it. Send a message to your bot and Claude will reply.
 
-- Channel adapters reply to every text message from allowed senders.
-- If allow list is empty for a channel, all senders are allowed.
-- Model is fixed to `claude-sonnet-4-5` per PRD decision.
-- Permissions are configured to bypass checks in SDK query options, matching your full-permission requirement.
-- Outbound sends retry once (2 attempts total) with short fixed backoff.
+## How it works
 
-## Known Limitations
+```
+Telegram / Discord
+       ↓
+  Your message comes in
+       ↓
+  Claude Code CLI processes it
+  (reads files, runs commands, thinks)
+       ↓
+  Response sent back to chat
+```
 
-- No media/file attachment ingestion yet.
-- No cron/heartbeat orchestration.
-- No subagent spawn behavior.
-- Tool output formatting is intentionally plain text in v1.
+Sessions are saved to a local JSON file, so conversations survive restarts. Each chat gets its own session.
 
-## Next Implementation Targets
+Claude operates within the workspace directory you configure. File access and shell commands are restricted to that directory for safety.
 
-1. Add media/file attachment ingestion for channel messages.
-2. Add optional channel-specific formatting profiles.
-3. Add structured result modes for specific workflows (e.g., repo summary JSON).
+## Configuration reference
+
+All settings go in your `.env` file.
+
+| Variable | What it does |
+|---|---|
+| `CLAUDEPIPE_WORKSPACE` | Root directory Claude can access |
+| `CLAUDEPIPE_SESSION_STORE_PATH` | Where to save session data (default: `data/sessions.json`) |
+| `CLAUDEPIPE_TELEGRAM_ENABLED` | Enable Telegram (`true`/`false`) |
+| `CLAUDEPIPE_TELEGRAM_TOKEN` | Telegram bot token |
+| `CLAUDEPIPE_TELEGRAM_ALLOW_FROM` | Comma-separated list of allowed Telegram user IDs |
+| `CLAUDEPIPE_DISCORD_ENABLED` | Enable Discord (`true`/`false`) |
+| `CLAUDEPIPE_DISCORD_TOKEN` | Discord bot token |
+| `CLAUDEPIPE_DISCORD_ALLOW_FROM` | Comma-separated list of allowed Discord user IDs |
+| `CLAUDEPIPE_EXEC_TIMEOUT_SEC` | Timeout for shell commands (default: 60) |
+| `CLAUDEPIPE_MAX_TOOL_ITERATIONS` | Max tool calls per turn (default: 20) |
+| `CLAUDEPIPE_SUMMARY_PROMPT_ENABLED` | Enable summary prompt templates |
+| `CLAUDEPIPE_SUMMARY_PROMPT_TEMPLATE` | Template for summary requests (supports `{{workspace}}` and `{{request}}`) |
+| `CLAUDEPIPE_TRANSCRIPT_LOG_ENABLED` | Log conversations to a file |
+| `CLAUDEPIPE_TRANSCRIPT_LOG_PATH` | Path for transcript log file |
+| `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_BYTES` | Max transcript file size before rotation |
+| `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_FILES` | Number of rotated transcript files to keep |
+
+## Development
+
+```bash
+npm run build       # compile TypeScript
+npm run dev         # run in development mode
+npm run test:run    # run tests
+```
+
+## Current limitations
+
+- Text only — no images, voice messages, or file attachments yet
+- Runs locally, not designed for server deployment
+- No scheduled or background tasks

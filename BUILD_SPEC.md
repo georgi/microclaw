@@ -38,20 +38,15 @@ claude-pipe/
       session-store.ts
       claude-client.ts
       agent-loop.ts
+      prompt-template.ts
+      retry.ts
+      text-chunk.ts
+      transcript-logger.ts
     channels/
       base.ts
       telegram.ts
       discord.ts
       manager.ts
-    tools/
-      base.ts
-      read-file.ts
-      write-file.ts
-      edit-file.ts
-      list-dir.ts
-      exec.ts
-      web-fetch.ts
-      message.ts
   data/
     sessions.json
 ```
@@ -62,9 +57,9 @@ claude-pipe/
 3. Agent loop consumes inbound event.
 4. Agent loop resolves conversation key (`channel:chat_id`).
 5. Session store returns existing Claude session id or none.
-6. Claude client resumes or creates session.
-7. Agent sends user message (`session.send`).
-8. Agent streams model events (`session.stream`) and executes tool calls when requested.
+6. Claude client spawns CLI subprocess with `--resume <session_id>` if available.
+7. CLI subprocess executes with `--print --output-format stream-json`.
+8. Agent parses stream-json frames for assistant text, tool calls, and results.
 9. Agent posts final text to outbound bus.
 10. Channel adapter sends response to the same chat.
 11. Agent persists/updates conversation-to-session mapping.
@@ -105,16 +100,24 @@ export type SessionMap = Record<string, SessionRecord>
 ```ts
 // src/config/schema.ts
 export interface ClaudePipeConfig {
-  model: 'claude-sonnet-4-5'
+  model: string
   workspace: string
   channels: {
     telegram: { enabled: boolean; token: string; allowFrom: string[] }
     discord: { enabled: boolean; token: string; allowFrom: string[] }
   }
-  tools: {
-    execTimeoutSec: number
+  summaryPrompt: {
+    enabled: boolean
+    template: string
+  }
+  transcriptLog: {
+    enabled: boolean
+    path: string
+    maxBytes?: number
+    maxFiles?: number
   }
   sessionStorePath: string // default: ./data/sessions.json
+  maxToolIterations: number // default: 20
 }
 ```
 
@@ -133,49 +136,48 @@ Config source order:
 
 ## 8. Claude Client Adapter Spec
 Responsibilities:
-- Wrap SDK V2 preview API.
-- `getOrCreateSession(conversationKey)`:
-  - if mapping exists: `unstable_v2_resumeSession(sessionId, { model })`
-  - else: `unstable_v2_createSession({ model })`
-- Extract session id from streamed messages and persist mapping.
-- Expose streamed assistant/tool events to agent loop.
+- Spawn Claude Code CLI subprocess with `--print --output-format stream-json`.
+- Pass `--resume <session_id>` if existing session mapping exists.
+- Parse stdout line-by-line as stream-json frames.
+- Extract session_id from result frames and persist mapping.
+- Emit progress updates for tool call events (started/finished/failed).
+- Return final assistant text response.
 
-Required compatibility note:
-- Keep adapter boundary small because V2 API is unstable.
+CLI flags used:
+- `--print`: Output result to stdout
+- `--verbose`: Enable detailed logging
+- `--output-format stream-json`: Emit streaming JSON frames
+- `--permission-mode bypassPermissions`: Full tool access
+- `--dangerously-skip-permissions`: Skip permission prompts
+- `--model <model>`: Specify model to use
+- `--resume <session_id>`: Resume existing session
 
-## 9. Tool Registry Spec
-Interface:
+## 9. Tools
+Claude Pipe uses Claude Code CLI's built-in tools. The CLI subprocess provides:
 
-```ts
-export interface ToolDefinition {
-  name: string
-  description: string
-  inputSchema: Record<string, unknown>
-  execute(input: Record<string, unknown>, ctx: ToolContext): Promise<string>
-}
+**File tools:**
+- `read_file`: Read file contents
+- `write_file`: Create or overwrite files
+- `edit_file`: Edit existing files with search/replace
+- `list_directory`: List directory contents
 
-export interface ToolContext {
-  workspace: string
-  channel: 'telegram' | 'discord'
-  chatId: string
-}
-```
+**Execution tools:**
+- `run_command`: Execute shell commands
 
-Rules:
-- All tools return plain string results.
-- Tool errors are returned as structured error strings, not thrown to crash loop.
-- `message` tool publishes outbound messages and returns delivery status text.
+**Web tools:**
+- `web_fetch`: Fetch and read web content
+- `web_search`: Search the web (if configured)
 
-## 10. Tool Behavior Requirements
-- `read_file(path)`: UTF-8 read from workspace-related paths.
-- `write_file(path, content)`: create parents, write UTF-8.
-- `edit_file(path, old_text, new_text)`: single-target replace with ambiguity warning.
-- `list_dir(path)`: directory listing.
-- `exec(command, working_dir?)`: shell execution with timeout.
-- `web_fetch(url, mode?, maxChars?)`: fetch and readable extraction.
-- `message(content, channel?, chat_id?)`: send chat message using current context defaults.
+**Communication:**
+- `message`: Send messages back to channels (via ToolContext routing)
 
-## 11. Channel Adapter Requirements
+The CLI handles tool execution and result formatting. Claude Pipe focuses on:
+- Spawning the CLI with proper workspace context
+- Parsing tool call events from stream-json output
+- Forwarding progress updates to channels
+- Persisting session state across turns
+
+## 10. Channel Adapter Requirements
 
 ### Telegram
 - Long polling implementation.
@@ -189,17 +191,18 @@ Rules:
 - Outbound sends text to same channel id.
 - Optional allow list check.
 
-## 12. Agent Loop Spec
+## 11. Agent Loop Spec
 Pseudo-flow:
 
 ```text
 consume inbound
-set tool context (channel/chat/workspace)
-session = claudeClient.getOrCreateSession(conversationKey)
-session.send(userText)
-for event in session.stream():
-  if event is tool call: execute tool, send tool result back to session
-  if event is assistant text chunk/final: accumulate
+apply summary prompt template if enabled
+spawn claude CLI subprocess with --resume if session exists
+parse stream-json frames from stdout:
+  - track tool_call_started events for progress
+  - track tool_call_finished events for progress
+  - accumulate assistant text blocks
+  - extract session_id for persistence
 publish outbound final text
 persist session mapping
 ```
@@ -208,13 +211,13 @@ Controls:
 - `maxToolIterations` default 20.
 - If no final text after iterations: send fallback message.
 
-## 13. Error Handling
+## 12. Error Handling
 - Channel receive errors: log + continue.
 - Tool failure: return tool error string to model.
 - Claude API failure: send user-friendly failure text.
 - Session persistence failure: log error, continue current process.
 
-## 14. Logging/Observability (local)
+## 13. Logging/Observability (local)
 Structured logs with:
 - timestamp
 - channel
@@ -224,11 +227,11 @@ Structured logs with:
 
 Do not log secrets or full file contents.
 
-## 15. Security Posture (v1)
+## 14. Security Posture (v1)
 - Full permissions are intentionally enabled by product decision.
 - Clearly document this in README and `.env.example`.
 
-## 16. Acceptance Test Matrix
+## 15. Acceptance Test Matrix
 
 1. Telegram workspace summary
 - Send: "Summarize key files in the workspace"
@@ -252,15 +255,14 @@ Do not log secrets or full file contents.
 - Force failing command via `exec`.
 - Expect: graceful error surfaced to model and coherent final response.
 
-## 17. Implementation Phases
+## 16. Implementation Phases
 1. Bootstrap project + config + logger + types.
 2. Session store + Claude client wrapper.
-3. Tool registry + core tools.
-4. Bus + agent loop.
-5. Telegram + Discord adapters.
-6. End-to-end local validation.
+3. Bus + agent loop.
+4. Telegram + Discord adapters.
+5. End-to-end local validation.
 
-## 18. Definition of Done
+## 17. Definition of Done
 - All acceptance tests above pass locally.
 - PRD in `/Users/mg/workspace/claude-pipe/PRD.md` remains consistent with implementation.
 - Build spec checkpoints are traceable in code modules.

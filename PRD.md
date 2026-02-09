@@ -4,10 +4,10 @@
 - Date: 2026-02-08
 - Owner: mg
 - Implementation language: TypeScript
-- LLM runtime: Claude Agent SDK V2 preview
+- LLM runtime: Claude Code CLI via subprocess (stream-json)
 
 ## 1. Product Summary
-Claude Pipe is a local, single-user TypeScript bot that reimplements nanobot core flows for Telegram and Discord using the Claude Agent SDK V2 session model.
+Claude Pipe is a local, single-user TypeScript bot that reimplements nanobot core flows for Telegram and Discord using Claude Code CLI subprocesses with stream-json output for session management.
 
 ## 2. Objective
 Deliver nanobot-style core behavior for:
@@ -33,14 +33,7 @@ As the bot owner, I send a Telegram message asking to summarize files in the wor
 - Full tool permissions for now.
 - Local deployment/runtime only.
 - Model locked to `claude-sonnet-4-5`.
-- Tool set:
-  - `read_file`
-  - `write_file`
-  - `edit_file`
-  - `list_dir`
-  - `exec`
-  - `web_fetch`
-  - `message`
+- Tool set: Claude Code CLI built-in tools (file operations, shell execution, web tools)
 
 ### Out of Scope (v1)
 - `spawn` subagents.
@@ -54,8 +47,8 @@ As the bot owner, I send a Telegram message asking to summarize files in the wor
 2. Normalize inbound events into one internal message format.
 3. Resolve a conversation key per channel/chat.
 4. Resume existing Claude session when available; otherwise create a new session.
-5. Run the agent turn using Claude SDK V2 `send()` and `stream()`.
-6. Execute requested tools and feed results back to the agent.
+5. Run the agent turn by spawning Claude Code CLI subprocess with stream-json output.
+6. Parse tool call events and results from CLI output.
 7. Send final text response to the same channel/chat.
 8. Persist only the session mapping for future turns.
 
@@ -75,10 +68,9 @@ As the bot owner, I send a Telegram message asking to summarize files in the wor
 - `channels/`: Telegram and Discord adapters.
 - `core/bus`: inbound/outbound event routing.
 - `core/agent-loop`: orchestration loop.
-- `core/claude-client`: SDK V2 wrapper (`createSession`, `resumeSession`, `send`, `stream`).
+- `core/claude-client`: CLI subprocess wrapper with stream-json parsing.
 - `core/session-store`: persistent map of conversation key to session id.
-- `core/tool-registry`: tool schema registration + dispatch.
-- `tools/`: concrete tool implementations.
+- `core/transcript-logger`: optional JSONL event logging.
 - `config/`: typed config loading and validation.
 
 ## 9. Data Model
@@ -93,22 +85,22 @@ As the bot owner, I send a Telegram message asking to summarize files in the wor
 }
 ```
 
-No transcript storage in v1.
+Optional transcript logging to JSONL for debugging (disabled by default).
 
 ## 10. Risks
-- Claude SDK V2 is unstable preview and may change.
-- Tool-calling behavior may require adapter updates during implementation.
+- Claude Code CLI subprocess behavior may change with updates.
+- Tool-calling output format may require adapter updates during implementation.
 - Full permissions increase operational risk by design (accepted for v1).
 
 ## 11. Success Criteria
 - Telegram and Discord both respond to inbound text messages.
 - Session continuity works across restarts through session map persistence.
 - Workspace summarization scenario works end-to-end from Telegram.
-- Core tools can be called and return results to the model loop.
+- CLI tool calls are parsed correctly and progress updates flow to channels.
 
 ## 12. Milestones
 1. Freeze interfaces and config schema.
 2. Implement channel adapters and internal bus.
-3. Implement Claude session manager and agent loop.
-4. Implement v1 tools and registry.
+3. Implement Claude CLI client wrapper and agent loop.
+4. Implement transcript logging and progress updates.
 5. Validate with end-to-end local acceptance scenarios.

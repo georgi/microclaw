@@ -25,7 +25,7 @@ This repository includes a working local runtime with:
 | Session persistence | Implemented | JSON map: `conversation_key -> session_id` |
 | Agent loop | Implemented | Inbound -> Claude turn -> outbound |
 | Claude CLI sessioning | Implemented | `claude --print --output-format stream-json` with `--resume` |
-| Tool calling | Implemented | MCP server generated from `ToolRegistry` |
+| Tool calling | Implemented | Claude CLI built-in tools via subprocess |
 | Telegram adapter | Implemented | Long polling + sendMessage + chunking + retry |
 | Discord adapter | Implemented | Gateway message events + channel send + chunking + retry |
 | Tool safety boundaries | Implemented | Workspace path guards + exec deny patterns |

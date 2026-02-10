@@ -32,7 +32,42 @@ npm install
 npm run dev
 ```
 
-On first run, you'll be guided through an interactive setup:
+First run starts the interactive setup wizard:
+
+1. **Verify Claude Code CLI** — the wizard checks if `claude` is installed
+2. **Choose platform** — select Telegram or Discord
+3. **Enter bot token** — provide your bot token from [BotFather](https://t.me/botfather) (Telegram) or the [Discord Developer Portal](https://discord.com/developers/applications)
+4. **Webhook mode** (optional) — configure webhook server for production (recommended for containers)
+5. **Select model** — choose Haiku, Sonnet 4.5, Opus 4.5, or enter a custom model name
+6. **Set workspace** — specify the directory Claude can access (defaults to current directory)
+
+Settings are saved to `~/.claude-pipe/settings.json`.
+
+**3. Start the bot**
+
+After setup, the bot starts automatically. To restart it later:
+
+```bash
+npm run dev     # development mode (TypeScript with tsx)
+npm start       # production mode (runs compiled JavaScript)
+```
+
+**Reconfigure settings**
+
+To change your configuration later:
+
+```bash
+npm run dev -- --reconfigure    # or -r
+```
+
+This runs the wizard again with your current values shown as defaults — press Enter to keep each setting, or type a new value.
+
+**Command-line options**
+
+```bash
+npm run dev -- --help    # or -h
+npm run dev -- --reconfigure   # or -r
+```
 
 1. **Verify Claude Code CLI** — the wizard checks if `claude` is installed
 2. **Choose platform** — select Telegram or Discord
@@ -103,9 +138,13 @@ For advanced options like transcript logging or custom summary prompts, you can 
 ## Development
 
 ```bash
-npm run build       # compile TypeScript
-npm run dev         # run in development mode
-npm run test:run    # run tests
+npm run build       # compile TypeScript to dist/
+npm run dev         # run in development mode (uses tsx)
+npm start           # run in production mode (uses compiled dist/)
+npm run test        # run tests in watch mode
+npm run test:run    # run tests once
+npm run dev -- --reconfigure   # reconfigure settings
+npm run dev -- --help          # show command-line options
 ```
 
 ## Current limitations

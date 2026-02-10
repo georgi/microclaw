@@ -158,12 +158,13 @@ export async function transcribeAudio(audioFilePath: string): Promise<Transcribe
   try {
     wavPath = await convertToWav(audioFilePath)
 
+    const WHISPER_TIMEOUT_MS = 120_000
+
     const { stdout } = await execFileAsync(binary, [
       '-m', model,
       '-f', wavPath,
-      '--no-timestamps',
-      '-nt'
-    ], { timeout: 120_000 })
+      '--no-timestamps'
+    ], { timeout: WHISPER_TIMEOUT_MS })
 
     const text = stdout.trim()
     if (!text) {

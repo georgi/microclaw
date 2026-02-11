@@ -97,6 +97,28 @@ function itemToolName(item: CodexThreadItem): string | undefined {
   return undefined
 }
 
+function commandProgressLabel(command: string): string {
+  const [rawBinary] = command.trim().split(/\s+/)
+  const binary = rawBinary?.split('/').pop()?.toLowerCase() ?? ''
+  const action = binary ? `Exec ${binary}` : 'Exec command'
+  const fullCommand = JSON.stringify(command.trim() || command)
+  return `${action}: ${fullCommand}`
+}
+
+function toolProgressMessage(item: CodexThreadItem): string {
+  if (item.type === 'commandExecution') return commandProgressLabel(item.command)
+  return `Using tool: ${itemToolName(item) ?? item.type}`
+}
+
+function toolFailureMessage(item: CodexThreadItem): string {
+  if (item.type === 'commandExecution') {
+    const action = commandProgressLabel(item.command)
+    return `Failed: ${action}`
+  }
+  const toolName = itemToolName(item) ?? item.type
+  return `Tool failed: ${toolName}`
+}
+
 function itemUseId(item: CodexThreadItem): string | undefined {
   if (typeof item.id === 'string') return item.id
   return undefined
@@ -297,15 +319,7 @@ export class CodexClient implements ModelClient {
       }
 
       if (notification.method === 'item/commandExecution/outputDelta') {
-        const itemId = asString(params.itemId)
         heartbeatSeen = true
-        await this.publishUpdate(context, {
-          kind: 'tool_call_started',
-          conversationKey,
-          message: 'Command output streaming',
-          toolName: 'exec',
-          ...(itemId ? { toolUseId: itemId } : {})
-        })
         return
       }
 
@@ -326,13 +340,14 @@ export class CodexClient implements ModelClient {
       if (notification.method === 'item/started') {
         const item = asRecord(params.item)
         if (!item) return
-        const toolName = itemToolName(item as CodexThreadItem)
+        const codexItem = item as CodexThreadItem
+        const toolName = itemToolName(codexItem)
         if (!toolName) return
-        const useId = itemUseId(item as CodexThreadItem)
+        const useId = itemUseId(codexItem)
         await this.publishUpdate(context, {
           kind: 'tool_call_started',
           conversationKey,
-          message: `Using tool: ${toolName}`,
+          message: toolProgressMessage(codexItem),
           toolName,
           ...(useId ? { toolUseId: useId } : {})
         })
@@ -346,14 +361,16 @@ export class CodexClient implements ModelClient {
         const toolName = itemToolName(codexItem)
         if (!toolName) return
         const failed = isFailedItem(codexItem)
-        const useId = itemUseId(codexItem)
-        await this.publishUpdate(context, {
-          kind: failed ? 'tool_call_failed' : 'tool_call_finished',
-          conversationKey,
-          message: failed ? `Tool failed: ${toolName}` : `Tool completed: ${toolName}`,
-          toolName,
-          ...(useId ? { toolUseId: useId } : {})
-        })
+        if (failed) {
+          const useId = itemUseId(codexItem)
+          await this.publishUpdate(context, {
+            kind: 'tool_call_failed',
+            conversationKey,
+            message: toolFailureMessage(codexItem),
+            toolName,
+            ...(useId ? { toolUseId: useId } : {})
+          })
+        }
         return
       }
 

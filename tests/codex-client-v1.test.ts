@@ -67,6 +67,7 @@ describe('CodexClient (json-rpc app-server)', () => {
       store as never,
       { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
     )
+    const updates: Array<{ kind: string; message: string; toolName?: string }> = []
 
     const writes: string[] = []
     proc.stdin.on('data', (chunk: Buffer | string) => {
@@ -127,7 +128,8 @@ describe('CodexClient (json-rpc app-server)', () => {
     const result = await client.runTurn('telegram:1', 'hello', {
       workspace: '/tmp/workspace',
       channel: 'telegram',
-      chatId: '1'
+      chatId: '1',
+      onUpdate: (u) => updates.push({ kind: u.kind, message: u.message, toolName: u.toolName })
     })
 
     expect(result).toBe('hello world')
@@ -138,5 +140,16 @@ describe('CodexClient (json-rpc app-server)', () => {
       expect.objectContaining({ cwd: '/tmp/workspace' })
     )
     expect(writes.some((line) => line.endsWith('\n'))).toBe(true)
+    expect(
+      updates.some(
+        (u) =>
+          u.kind === 'tool_call_started' &&
+          u.toolName === 'exec' &&
+          u.message === 'Exec ls: "ls"'
+      )
+    ).toBe(true)
+    expect(updates.some((u) => u.kind === 'tool_call_finished' && u.toolName === 'exec')).toBe(
+      false
+    )
   })
 })

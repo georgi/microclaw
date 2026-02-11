@@ -71,6 +71,6 @@ describe('CodexClient integration (fake app-server subprocess)', () => {
     ).toBe(true)
     expect(
       updates.some((u) => u.kind === 'tool_call_finished' && u.toolName === 'apply_patch')
-    ).toBe(true)
+    ).toBe(false)
   })
 })

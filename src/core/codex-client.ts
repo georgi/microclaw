@@ -50,9 +50,9 @@ function truncate(value: string, max = 2000): string {
 }
 
 function parseCodexArgs(input: string | undefined): string[] {
-  if (!input) return ['--dangerously-bypass-approvals-and-sandbox', 'app-server']
+  if (!input) return ['--sandbox', 'danger-full-access', '--ask-for-approval', 'never', 'app-server']
   const trimmed = input.trim()
-  if (!trimmed) return ['--dangerously-bypass-approvals-and-sandbox', 'app-server']
+  if (!trimmed) return ['--sandbox', 'danger-full-access', '--ask-for-approval', 'never', 'app-server']
   if (trimmed.startsWith('[')) {
     try {
       const parsed = JSON.parse(trimmed) as unknown
@@ -72,7 +72,7 @@ function buildRuntimeOptions(): CodexRuntimeOptions {
     policyRaw === 'untrusted' || policyRaw === 'on-failure' || policyRaw === 'on-request'
       ? policyRaw
       : 'never'
-  const sandboxRaw = process.env.CLAUDEPIPE_CODEX_SANDBOX?.trim() || 'workspace-write'
+  const sandboxRaw = process.env.CLAUDEPIPE_CODEX_SANDBOX?.trim() || 'danger-full-access'
   const sandboxMode =
     sandboxRaw === 'read-only' || sandboxRaw === 'danger-full-access'
       ? sandboxRaw

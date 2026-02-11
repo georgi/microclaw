@@ -136,7 +136,7 @@ describe('CodexClient (json-rpc app-server)', () => {
     expect(store.set).toHaveBeenCalledWith('telegram:1', 'thread-1')
     expect(spawnMock).toHaveBeenCalledWith(
       'codex',
-      ['app-server'],
+      ['--dangerously-bypass-approvals-and-sandbox', 'app-server'],
       expect.objectContaining({ cwd: '/tmp/workspace' })
     )
     expect(writes.some((line) => line.endsWith('\n'))).toBe(true)

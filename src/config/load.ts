@@ -13,6 +13,21 @@ function parseCsv(input: string | undefined): string[] {
     .filter(Boolean)
 }
 
+function parseSpaceSeparatedArgs(input: string | undefined): string[] | undefined {
+  if (!input) return undefined
+  const trimmed = input.trim()
+  if (!trimmed) return []
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) return parsed
+    } catch {
+      // Fall through to plain split.
+    }
+  }
+  return trimmed.split(/\s+/).filter(Boolean)
+}
+
 /**
  * Loads runtime configuration.
  *
@@ -24,6 +39,15 @@ export function loadConfig(): ClaudePipeConfig {
     'Workspace: {{workspace}}\n' +
     'Request: {{request}}\n' +
     'Provide a concise summary with key files and actionable insights.'
+  const defaultClaudeArgs = [
+    '--print',
+    '--verbose',
+    '--output-format',
+    'stream-json',
+    '--permission-mode',
+    'bypassPermissions',
+    '--dangerously-skip-permissions'
+  ]
 
   // Load env from ~/.claude-pipe/.env first, then local .env as a legacy fallback.
   loadEnv({ path: path.join(getConfigDir(), '.env') })
@@ -40,6 +64,10 @@ export function loadConfig(): ClaudePipeConfig {
     return configSchema.parse({
       llmProvider,
       model: s.model,
+      claudeCli: {
+        command: s.claudeCli?.command?.trim() || 'claude',
+        args: s.claudeCli?.args ?? defaultClaudeArgs
+      },
       workspace: s.workspace,
       channels: {
         telegram: {
@@ -78,6 +106,10 @@ export function loadConfig(): ClaudePipeConfig {
     llmProvider:
       process.env.CLAUDEPIPE_LLM_PROVIDER === 'codex' ? 'codex' : 'claude',
     model: process.env.CLAUDEPIPE_MODEL ?? '',
+    claudeCli: {
+      command: process.env.CLAUDEPIPE_CLAUDE_COMMAND?.trim() || 'claude',
+      args: parseSpaceSeparatedArgs(process.env.CLAUDEPIPE_CLAUDE_ARGS) ?? defaultClaudeArgs
+    },
     workspace: process.env.CLAUDEPIPE_WORKSPACE ?? process.cwd(),
       channels: {
         telegram: {

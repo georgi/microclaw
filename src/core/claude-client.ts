@@ -28,6 +28,16 @@ function getClaudeCodeExecutablePath(): string {
   return 'claude'
 }
 
+const defaultClaudeArgs = [
+  '--print',
+  '--verbose',
+  '--output-format',
+  'stream-json',
+  '--permission-mode',
+  'bypassPermissions',
+  '--dangerously-skip-permissions'
+]
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object'
 }
@@ -100,18 +110,8 @@ export class ClaudeClient implements ModelClient {
     context: ToolContext
   ): Promise<string> {
     const savedSession = this.store.get(conversationKey)
-    const executable = getClaudeCodeExecutablePath()
-    const args = [
-      '--print',
-      '--verbose',
-      '--output-format',
-      'stream-json',
-      '--permission-mode',
-      'bypassPermissions',
-      '--dangerously-skip-permissions',
-      '--model',
-      this.config.model
-    ]
+    const executable = this.config.claudeCli?.command?.trim() || getClaudeCodeExecutablePath()
+    const args = [...(this.config.claudeCli?.args ?? defaultClaudeArgs), '--model', this.config.model]
 
     if (savedSession?.sessionId) {
       args.push('--resume', savedSession.sessionId)

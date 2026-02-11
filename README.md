@@ -107,6 +107,10 @@ Configuration is stored in `~/.claude-pipe/settings.json` and created by the onb
 ```json
 {
   "provider": "claude",
+  "claudeCli": {
+    "command": "claude",
+    "args": ["--print", "--verbose", "--output-format", "stream-json"]
+  },
   "channel": "telegram",
   "token": "your-bot-token",
   "allowFrom": ["user-id-1", "user-id-2"],
@@ -118,6 +122,7 @@ Configuration is stored in `~/.claude-pipe/settings.json` and created by the onb
 | Setting | What it does |
 |---|---|
 | `provider` | LLM runtime: `claude` or `codex` |
+| `claudeCli` | Claude CLI runtime config (`command` and startup `args`) |
 | `channel` | Platform to use: `telegram`, `discord`, or `cli` |
 | `token` | Bot token from [BotFather](https://t.me/botfather) or [Discord Developer Portal](https://discord.com/developers/applications) |
 | `allowFrom` | Array of allowed user IDs (empty = allow everyone) |
@@ -139,12 +144,27 @@ For advanced options like transcript logging or custom summary prompts, you can 
 | `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_BYTES` | Max transcript file size before rotation |
 | `CLAUDEPIPE_TRANSCRIPT_LOG_MAX_FILES` | Number of rotated transcript files to keep |
 | `CLAUDEPIPE_LLM_PROVIDER` | Runtime provider when using env config: `claude` or `codex` |
+| `CLAUDEPIPE_CLAUDE_COMMAND` | Claude executable path/command (default: `claude`) |
+| `CLAUDEPIPE_CLAUDE_ARGS` | Claude startup args (space-separated or JSON array) |
 | `CLAUDEPIPE_CODEX_COMMAND` | Codex executable path/command (default: `codex`) |
-| `CLAUDEPIPE_CODEX_ARGS` | Codex startup args (default: `app-server`) |
+| `CLAUDEPIPE_CODEX_ARGS` | Codex startup args (default: `--dangerously-bypass-approvals-and-sandbox app-server`) |
 | `CLAUDEPIPE_CLI_ENABLED` | Enable CLI channel (`true`/`false`) |
 | `CLAUDEPIPE_CLI_ALLOW_FROM` | Comma-separated allowed sender IDs for CLI mode |
 | `CLAUDEPIPE_CLI_SENDER_ID` | Sender ID used by CLI channel (default: `local-user`) |
 | `CLAUDEPIPE_CLI_CHAT_ID` | Chat ID used by CLI channel (default: `local-chat`) |
+
+### Dangerous defaults and flags
+
+This project currently ships with dangerous automation defaults for both runtimes. These settings reduce prompts and restrictions, but they can allow destructive file or shell operations if a prompt goes wrong.
+
+- Claude default args include `--permission-mode bypassPermissions` and `--dangerously-skip-permissions`.
+- Codex default args include `--dangerously-bypass-approvals-and-sandbox app-server`.
+
+If you want safer behavior, explicitly override these:
+
+- In `~/.claude-pipe/settings.json`, set `claudeCli.args` to remove dangerous Claude flags.
+- In env, set `CLAUDEPIPE_CODEX_ARGS` without dangerous Codex flags.
+- In env, tighten Codex policy with `CLAUDEPIPE_CODEX_APPROVAL_POLICY` and `CLAUDEPIPE_CODEX_SANDBOX`.
 
 ## Development
 

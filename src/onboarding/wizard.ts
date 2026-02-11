@@ -6,6 +6,16 @@ import { spawn } from 'node:child_process'
 
 import { type Settings, writeSettings } from '../config/settings.js'
 
+const DEFAULT_CLAUDE_CLI_ARGS = [
+  '--print',
+  '--verbose',
+  '--output-format',
+  'stream-json',
+  '--permission-mode',
+  'bypassPermissions',
+  '--dangerously-skip-permissions'
+]
+
 /* ------------------------------------------------------------------ */
 /*  Readline helpers                                                   */
 /* ------------------------------------------------------------------ */
@@ -517,6 +527,16 @@ export async function runOnboarding(existingSettings?: Settings): Promise<Settin
 
     const settings: Settings = {
       provider,
+      ...(provider === 'claude'
+        ? {
+            claudeCli: {
+              command: existingSettings?.claudeCli?.command ?? 'claude',
+              args: existingSettings?.claudeCli?.args ?? DEFAULT_CLAUDE_CLI_ARGS
+            }
+          }
+        : existingSettings?.claudeCli
+          ? { claudeCli: existingSettings.claudeCli }
+          : {}),
       channel,
       token,
       allowFrom: existingSettings?.allowFrom ?? [],

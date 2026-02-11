@@ -50,9 +50,9 @@ function truncate(value: string, max = 2000): string {
 }
 
 function parseCodexArgs(input: string | undefined): string[] {
-  if (!input) return ['app-server']
+  if (!input) return ['--dangerously-bypass-approvals-and-sandbox', 'app-server']
   const trimmed = input.trim()
-  if (!trimmed) return ['app-server']
+  if (!trimmed) return ['--dangerously-bypass-approvals-and-sandbox', 'app-server']
   if (trimmed.startsWith('[')) {
     try {
       const parsed = JSON.parse(trimmed) as unknown
@@ -106,13 +106,15 @@ function commandProgressLabel(command: string): string {
 }
 
 function toolProgressMessage(item: CodexThreadItem): string {
-  if (item.type === 'commandExecution') return commandProgressLabel(item.command)
+  if (item.type === 'commandExecution') {
+    return commandProgressLabel(asString(item.command) ?? '')
+  }
   return `Using tool: ${itemToolName(item) ?? item.type}`
 }
 
 function toolFailureMessage(item: CodexThreadItem): string {
   if (item.type === 'commandExecution') {
-    const action = commandProgressLabel(item.command)
+    const action = commandProgressLabel(asString(item.command) ?? '')
     return `Failed: ${action}`
   }
   const toolName = itemToolName(item) ?? item.type

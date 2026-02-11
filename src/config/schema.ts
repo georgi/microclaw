@@ -35,6 +35,12 @@ export const webhookSchema = z
 export const configSchema = z.object({
   llmProvider: z.enum(['claude', 'codex']).default('claude'),
   model: z.string(),
+  claudeCli: z
+    .object({
+      command: z.string().default('claude'),
+      args: z.array(z.string()).default([])
+    })
+    .optional(),
   workspace: z.string(),
   channels: z.object({
     telegram: channelSchema,

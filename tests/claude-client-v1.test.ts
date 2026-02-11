@@ -25,6 +25,18 @@ function makeProcess(): FakeProcess {
 function makeConfig() {
   return {
     model: 'claude-sonnet-4-5' as const,
+    claudeCli: {
+      command: 'claude',
+      args: [
+        '--print',
+        '--verbose',
+        '--output-format',
+        'stream-json',
+        '--permission-mode',
+        'bypassPermissions',
+        '--dangerously-skip-permissions'
+      ]
+    },
     workspace: '/tmp/workspace',
     channels: {
       telegram: { enabled: false, token: '', allowFrom: [] },
@@ -139,6 +151,49 @@ describe('ClaudeClient (subprocess stream-json)', () => {
     expect(args).toContain('--resume')
     const resumeIndex = args.indexOf('--resume')
     expect(args[resumeIndex + 1]).toBe('sess-existing')
+  })
+
+  it('uses configured claude cli command and args', async () => {
+    const { ClaudeClient } = await import('../src/core/claude-client.js')
+    const proc = makeProcess()
+    spawnMock.mockReturnValue(proc)
+
+    const store = {
+      get: vi.fn(() => undefined),
+      set: vi.fn(async () => undefined)
+    }
+
+    const config = makeConfig()
+    config.claudeCli.command = '/usr/local/bin/claude-custom'
+    config.claudeCli.args = ['--print', '--output-format', 'stream-json']
+
+    const client = new ClaudeClient(config, store as never, {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    })
+
+    const turnPromise = client.runTurn('telegram:1', 'hello', {
+      workspace: '/tmp/workspace',
+      channel: 'telegram',
+      chatId: '1'
+    })
+    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalledTimes(1))
+
+    pushLine(proc, {
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: 'ok' }] }
+    })
+    pushLine(proc, { type: 'result', subtype: 'success', is_error: false, session_id: 'sess-1' })
+    proc.stdout.end()
+    proc.emit('close', 0, null)
+    await turnPromise
+
+    const [cmd, args] = spawnMock.mock.calls[0] as [string, string[]]
+    expect(cmd).toBe('/usr/local/bin/claude-custom')
+    expect(args.slice(0, 3)).toEqual(['--print', '--output-format', 'stream-json'])
+    expect(args).toContain('--model')
+    expect(args).toContain('claude-sonnet-4-5')
   })
 
   it('emits tool progress updates via onUpdate callback', async () => {

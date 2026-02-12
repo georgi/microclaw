@@ -1,3 +1,5 @@
+import { unlink } from 'node:fs/promises'
+
 import type { CommandMeta } from '../commands/types.js'
 import type { ClaudePipeConfig } from '../config/schema.js'
 import { MessageBus } from '../core/bus.js'
@@ -5,12 +7,37 @@ import { retry } from '../core/retry.js'
 import { chunkText } from '../core/text-chunk.js'
 import type { InboundMessage, Logger, OutboundMessage } from '../core/types.js'
 import { isSenderAllowed, type Channel } from './base.js'
+import {
+  transcribeAudio,
+  downloadToTemp,
+  WHISPER_INSTALL_INSTRUCTIONS
+} from '../audio/whisper.js'
+
+type TelegramVoice = {
+  file_id: string
+  file_unique_id: string
+  duration: number
+  mime_type?: string
+  file_size?: number
+}
+
+type TelegramAudio = {
+  file_id: string
+  file_unique_id: string
+  duration: number
+  mime_type?: string
+  file_size?: number
+  title?: string
+  performer?: string
+}
 
 type TelegramUpdate = {
   update_id: number
   message?: {
     message_id: number
     text?: string
+    voice?: TelegramVoice
+    audio?: TelegramAudio
     chat: { id: number }
     from?: { id: number }
   }
@@ -190,11 +217,19 @@ export class TelegramChannel implements Channel {
     this.pendingTyping.add(chatId)
     await this.sendChatAction(chatId, 'typing')
 
+    let content: string
+
+    if (message.voice || message.audio) {
+      content = await this.processAudioMessage(message)
+    } else {
+      content = message.text?.trim() || '[empty message]'
+    }
+
     const inbound: InboundMessage = {
       channel: 'telegram',
       senderId,
       chatId,
-      content: message.text?.trim() || '[empty message]',
+      content,
       timestamp: new Date().toISOString(),
       metadata: {
         messageId: message.message_id
@@ -202,6 +237,98 @@ export class TelegramChannel implements Channel {
     }
 
     await this.bus.publishInbound(inbound)
+  }
+
+  /**
+   * Processes a voice or audio message: downloads the file from Telegram,
+   * transcribes it with whisper-cpp, and returns the content string.
+   *
+   * Falls back to a contextual message with install instructions when
+   * whisper-cpp is unavailable.
+   */
+  private async processAudioMessage(
+    message: NonNullable<TelegramUpdate['message']>
+  ): Promise<string> {
+    const voiceOrAudio = message.voice ?? message.audio
+    if (!voiceOrAudio) return '[empty audio message]'
+
+    const fileId = voiceOrAudio.file_id
+    const duration = voiceOrAudio.duration
+
+    let audioPath: string | null = null
+    try {
+      // Get file path from Telegram
+      const filePath = await this.getFilePath(fileId)
+      if (!filePath) {
+        this.logger.error('channel.telegram.audio_file_not_found', { fileId })
+        return '[audio message — could not retrieve file from Telegram]'
+      }
+
+      // Download the audio file
+      const token = this.config.channels.telegram.token
+      const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`
+      const ext = filePath.includes('.') ? `.${filePath.split('.').pop()}` : '.ogg'
+      audioPath = await downloadToTemp(fileUrl, ext)
+
+      this.logger.info('channel.telegram.audio_downloaded', {
+        fileId,
+        duration,
+        path: audioPath
+      })
+
+      // Transcribe using whisper-cpp
+      const result = await transcribeAudio(audioPath)
+
+      if (result.success) {
+        this.logger.info('channel.telegram.audio_transcribed', {
+          fileId,
+          textLength: result.text.length
+        })
+        return `[Voice message transcription]: ${result.text}`
+      }
+
+      // whisper-cpp not available — provide context to Claude
+      this.logger.warn('channel.telegram.whisper_unavailable', {
+        reason: result.reason
+      })
+      return (
+        `[The user sent a voice message (${duration}s) but it could not be transcribed. ` +
+        `Reason: ${result.reason}]\n\n${WHISPER_INSTALL_INSTRUCTIONS}`
+      )
+    } catch (error) {
+      this.logger.error('channel.telegram.audio_error', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      return '[audio message — transcription failed due to an unexpected error]'
+    } finally {
+      // Clean up downloaded audio file
+      if (audioPath) {
+        try { await unlink(audioPath) } catch { /* ignore cleanup errors */ }
+      }
+    }
+  }
+
+  /**
+   * Resolves a Telegram file_id to a downloadable file_path via the Bot API.
+   */
+  private async getFilePath(fileId: string): Promise<string | null> {
+    const token = this.config.channels.telegram.token
+    const url = `https://api.telegram.org/bot${token}/getFile`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId })
+    })
+
+    if (!response.ok) return null
+
+    const json = (await response.json()) as {
+      ok: boolean
+      result?: { file_path?: string }
+    }
+
+    return json.ok ? (json.result?.file_path ?? null) : null
   }
 
   /**

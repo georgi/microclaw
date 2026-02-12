@@ -5,7 +5,6 @@ import { retry } from '../core/retry.js'
 import { chunkText } from '../core/text-chunk.js'
 import type { InboundMessage, Logger, OutboundMessage } from '../core/types.js'
 import { isSenderAllowed, type Channel } from './base.js'
-import type { WebhookServer, WebhookResponse } from './webhook-server.js'
 
 type TelegramUpdate = {
   update_id: number
@@ -25,7 +24,7 @@ const SEND_RETRY_BACKOFF_MS = 50
 type ChatAction = 'typing' | 'upload_photo' | 'upload_video' | 'upload_audio' | 'upload_document' | 'find_location' | 'record_video' | 'record_voice'
 
 /**
- * Telegram adapter using Bot API long polling or webhook mode.
+ * Telegram adapter using Bot API long polling.
  */
 export class TelegramChannel implements Channel {
   readonly name = 'telegram' as const
@@ -41,7 +40,7 @@ export class TelegramChannel implements Channel {
     private readonly logger: Logger
   ) {}
 
-  /** Starts background polling when Telegram is enabled (used in non-webhook mode). */
+  /** Starts background polling when Telegram is enabled. */
   async start(): Promise<void> {
     if (!this.config.channels.telegram.enabled) return
     if (!this.config.channels.telegram.token) {
@@ -49,40 +48,14 @@ export class TelegramChannel implements Channel {
       return
     }
 
-    // In webhook mode, registration happens via registerWebhook()
-    if (this.config.webhook.enabled) return
-
     this.running = true
     this.pollTask = this.pollLoop()
     this.logger.info('channel.telegram.start')
   }
 
-  /**
-   * Registers webhook routes and sets the Telegram webhook URL.
-   * Called by ChannelManager when webhook mode is enabled.
-   */
-  async registerWebhook(server: WebhookServer): Promise<void> {
-    if (!this.config.channels.telegram.enabled) return
-    if (!this.config.channels.telegram.token) return
-
-    const secret = this.config.channels.telegram.webhookSecret
-    server.addRoute('/webhook/telegram', async (body, req) => {
-      return this.handleWebhookRequest(body, req, secret)
-    })
-
-    // Register the webhook URL with Telegram API
-    const webhookUrl = this.config.webhook.url.replace(/\/$/, '') + '/webhook/telegram'
-    await this.setWebhook(webhookUrl, secret)
-    this.running = true
-    this.logger.info('channel.telegram.webhook_registered', { url: webhookUrl })
-  }
-
-  /** Stops polling and waits for loop completion. Removes webhook if set. */
+  /** Stops polling and waits for loop completion. */
   async stop(): Promise<void> {
     this.running = false
-    if (this.config.webhook.enabled && this.config.channels.telegram.enabled) {
-      await this.deleteWebhook()
-    }
     await this.pollTask
     this.logger.info('channel.telegram.stop')
   }
@@ -229,70 +202,6 @@ export class TelegramChannel implements Channel {
     }
 
     await this.bus.publishInbound(inbound)
-  }
-
-  /* ------------------------------------------------------------------ */
-  /*  Webhook-specific helpers                                           */
-  /* ------------------------------------------------------------------ */
-
-  private async handleWebhookRequest(
-    body: string,
-    req: import('node:http').IncomingMessage,
-    secret: string
-  ): Promise<WebhookResponse> {
-    // Verify secret token header if configured
-    if (secret) {
-      const headerSecret = req.headers['x-telegram-bot-api-secret-token']
-      if (headerSecret !== secret) {
-        this.logger.warn('channel.telegram.webhook_unauthorized')
-        return { status: 401, body: JSON.stringify({ error: 'unauthorized' }) }
-      }
-    }
-
-    try {
-      const update = JSON.parse(body) as TelegramUpdate
-      if (update.message) {
-        await this.handleMessage(update)
-      }
-      return { status: 200, body: JSON.stringify({ ok: true }) }
-    } catch (error) {
-      this.logger.error('channel.telegram.webhook_parse_error', {
-        error: error instanceof Error ? error.message : String(error)
-      })
-      return { status: 400, body: JSON.stringify({ error: 'bad request' }) }
-    }
-  }
-
-  private async setWebhook(url: string, secret: string): Promise<void> {
-    const token = this.config.channels.telegram.token
-    const apiUrl = `https://api.telegram.org/bot${token}/setWebhook`
-
-    const payload: Record<string, unknown> = { url }
-    if (secret) {
-      payload.secret_token = secret
-    }
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(`Telegram setWebhook failed (${response.status}): ${text}`)
-    }
-  }
-
-  private async deleteWebhook(): Promise<void> {
-    const token = this.config.channels.telegram.token
-    const apiUrl = `https://api.telegram.org/bot${token}/deleteWebhook`
-
-    try {
-      await fetch(apiUrl, { method: 'POST' })
-    } catch {
-      // Best-effort cleanup
-    }
   }
 
   /**

@@ -13,7 +13,6 @@ function makeConfig(enabled = true) {
       discord: { enabled: false, token: '', allowFrom: [] },
       cli: { enabled, allowFrom: [] }
     },
-    webhook: { enabled: false, port: 3000, host: '0.0.0.0', url: '' },
     summaryPrompt: { enabled: true, template: 'Workspace: {{workspace}} Request: {{request}}' },
     transcriptLog: { enabled: false, path: '/tmp/transcript.jsonl' },
     sessionStorePath: '/tmp/sessions.json',

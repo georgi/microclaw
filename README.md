@@ -38,9 +38,8 @@ First run starts the interactive setup wizard:
 2. **Verify runtime CLI** — the wizard checks `claude` or `codex`
 3. **Choose platform** — select Telegram, Discord, or CLI (local terminal)
 4. **Enter bot token** — required for Telegram/Discord, skipped in CLI mode
-5. **Webhook mode** (optional) — configure webhook server for production (recommended for containers)
-6. **Select model** — provider-specific presets (Claude) or live Codex model list from your local CLI, with free-form fallback
-7. **Set workspace** — specify the directory the agent can access (defaults to current directory)
+5. **Select model** — provider-specific presets (Claude) or live Codex model list from your local CLI, with free-form fallback
+6. **Set workspace** — specify the directory the agent can access (defaults to current directory)
 
 Settings are saved to `~/.claude-pipe/settings.json`.
 

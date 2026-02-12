@@ -5,7 +5,6 @@ import type { Channel } from './base.js'
 import { CliChannel } from './cli.js'
 import { DiscordChannel } from './discord.js'
 import { TelegramChannel } from './telegram.js'
-import { WebhookServer } from './webhook-server.js'
 
 /**
  * Owns channel adapter lifecycle and outbound message dispatching.
@@ -15,7 +14,6 @@ export class ChannelManager {
   private readonly telegram: TelegramChannel
   private readonly discord: DiscordChannel
   private readonly cli: CliChannel
-  private webhookServer: WebhookServer | null = null
   private dispatcherRunning = false
 
   constructor(
@@ -31,19 +29,6 @@ export class ChannelManager {
 
   /** Starts all adapters and launches outbound dispatcher. */
   async startAll(): Promise<void> {
-    // Start webhook server if enabled
-    if (this.config.webhook.enabled) {
-      this.webhookServer = new WebhookServer(
-        this.config.webhook.port,
-        this.config.webhook.host,
-        this.logger
-      )
-
-      await this.telegram.registerWebhook(this.webhookServer)
-      await this.discord.registerWebhook(this.webhookServer)
-      await this.webhookServer.start()
-    }
-
     for (const channel of this.channels) {
       await channel.start()
     }
@@ -52,17 +37,12 @@ export class ChannelManager {
     void this.dispatchOutbound()
   }
 
-  /** Stops outbound dispatch, webhook server, and all channel adapters. */
+  /** Stops outbound dispatch and all channel adapters. */
   async stopAll(): Promise<void> {
     this.dispatcherRunning = false
 
     for (const channel of this.channels) {
       await channel.stop()
-    }
-
-    if (this.webhookServer) {
-      await this.webhookServer.stop()
-      this.webhookServer = null
     }
   }
 

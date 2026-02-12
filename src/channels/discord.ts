@@ -9,8 +9,6 @@ import {
   type Message
 } from 'discord.js'
 
-import { createPublicKey, verify } from 'node:crypto'
-
 import type { CommandMeta } from '../commands/types.js'
 import type { ClaudePipeConfig } from '../config/schema.js'
 import { MessageBus } from '../core/bus.js'
@@ -18,7 +16,6 @@ import { retry } from '../core/retry.js'
 import { chunkText } from '../core/text-chunk.js'
 import type { InboundMessage, Logger, OutboundMessage } from '../core/types.js'
 import { isSenderAllowed, type Channel } from './base.js'
-import type { WebhookServer, WebhookResponse } from './webhook-server.js'
 
 const DISCORD_MESSAGE_MAX = 1800
 const SEND_RETRY_ATTEMPTS = 2
@@ -37,16 +34,13 @@ export class DiscordChannel implements Channel {
     private readonly logger: Logger
   ) {}
 
-  /** Initializes and logs in the Discord bot when enabled (gateway mode). */
+  /** Initializes and logs in the Discord bot when enabled. */
   async start(): Promise<void> {
     if (!this.config.channels.discord.enabled) return
     if (!this.config.channels.discord.token) {
       this.logger.warn('channel.discord.misconfigured', { reason: 'missing token' })
       return
     }
-
-    // In webhook mode, registration happens via registerWebhook()
-    if (this.config.webhook.enabled) return
 
     this.client = new Client({
       intents: [
@@ -87,31 +81,6 @@ export class DiscordChannel implements Channel {
     await this.client.destroy()
     this.client = null
     this.logger.info('channel.discord.stop')
-  }
-
-  /**
-   * Registers webhook routes for Discord interaction endpoint.
-   * Called by ChannelManager when webhook mode is enabled.
-   *
-   * The interactions endpoint receives slash command payloads via HTTP POST.
-   * Requires the application's public key (`webhookSecret`) for Ed25519 signature verification.
-   */
-  async registerWebhook(server: WebhookServer): Promise<void> {
-    if (!this.config.channels.discord.enabled) return
-
-    const publicKeyHex = this.config.channels.discord.webhookSecret
-    if (!publicKeyHex) {
-      this.logger.warn('channel.discord.webhook_misconfigured', {
-        reason: 'missing webhookSecret (Discord application public key)'
-      })
-      return
-    }
-
-    server.addRoute('/webhook/discord', async (body, req) => {
-      return this.handleWebhookInteraction(body, req, publicKeyHex)
-    })
-
-    this.logger.info('channel.discord.webhook_registered')
   }
 
   /** Sends a text message to a Discord channel by ID. */
@@ -268,106 +237,6 @@ export class DiscordChannel implements Channel {
     await this.bus.publishInbound(inbound)
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Webhook-specific helpers                                           */
-  /* ------------------------------------------------------------------ */
-
-  private async handleWebhookInteraction(
-    body: string,
-    req: import('node:http').IncomingMessage,
-    publicKeyHex: string
-  ): Promise<WebhookResponse> {
-    const signature = req.headers['x-signature-ed25519'] as string | undefined
-    const timestamp = req.headers['x-signature-timestamp'] as string | undefined
-
-    if (!signature || !timestamp) {
-      return { status: 401, body: JSON.stringify({ error: 'missing signature' }) }
-    }
-
-    if (!verifyDiscordSignature(body, signature, timestamp, publicKeyHex)) {
-      this.logger.warn('channel.discord.webhook_signature_invalid')
-      return { status: 401, body: JSON.stringify({ error: 'invalid signature' }) }
-    }
-
-    const payload = JSON.parse(body) as { type: number; [key: string]: unknown }
-
-    // Type 1 = PING (Discord verification handshake)
-    if (payload.type === 1) {
-      return { status: 200, body: JSON.stringify({ type: 1 }) }
-    }
-
-    // Type 2 = APPLICATION_COMMAND
-    if (payload.type === 2) {
-      const data = payload.data as {
-        name: string
-        options?: Array<{
-          name: string
-          type: number
-          value?: string
-          options?: Array<{ name: string; value: string }>
-        }>
-      }
-      const member = payload.member as { user: { id: string } } | undefined
-      const user = payload.user as { id: string } | undefined
-      const senderId = member?.user?.id ?? user?.id ?? ''
-      const channelId = payload.channel_id as string
-
-      if (!isSenderAllowed(senderId, this.config.channels.discord.allowFrom)) {
-        this.logger.warn('channel.discord.denied', { senderId })
-        return {
-          status: 200,
-          body: JSON.stringify({
-            type: 4,
-            data: { content: 'You are not authorised.', flags: 64 }
-          })
-        }
-      }
-
-      if (!this.isChannelAllowed(channelId)) {
-        this.logger.warn('channel.discord.denied_channel', { senderId, chatId: channelId })
-        return {
-          status: 200,
-          body: JSON.stringify({
-            type: 4,
-            data: { content: 'This channel is not authorised.', flags: 64 }
-          })
-        }
-      }
-
-      // Build command string from interaction data
-      const subcommand = data.options?.find((o) => o.type === 1)
-      const commandName = subcommand
-        ? `/${data.name}_${subcommand.name}`
-        : `/${data.name}`
-
-      const promptOpt =
-        subcommand?.options?.find((o) => o.name === 'prompt') ??
-        data.options?.find((o) => o.name === 'prompt')
-      const content = promptOpt?.value
-        ? `${commandName} ${promptOpt.value}`
-        : commandName
-
-      const inbound: InboundMessage = {
-        channel: 'discord',
-        senderId,
-        chatId: channelId,
-        content,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          interactionId: payload.id as string,
-          guildId: (payload.guild_id as string) ?? undefined
-        }
-      }
-
-      await this.bus.publishInbound(inbound)
-
-      // Respond with DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE (type 5)
-      return { status: 200, body: JSON.stringify({ type: 5 }) }
-    }
-
-    return { status: 200, body: JSON.stringify({ type: 1 }) }
-  }
-
   private isChannelAllowed(chatId: string): boolean {
     const allowChannels = this.config.channels.discord.allowChannels ?? []
     return allowChannels.length === 0 || allowChannels.includes(chatId)
@@ -424,38 +293,5 @@ export class DiscordChannel implements Channel {
     const rest = new REST({ version: '10' }).setToken(token)
     await rest.put(Routes.applicationCommands(applicationId), { body })
     logger.info('channel.discord.slash_commands_registered', { count: body.length })
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Ed25519 signature verification for Discord interactions             */
-/* ------------------------------------------------------------------ */
-
-/** DER/SPKI prefix for Ed25519 public keys. */
-const ED25519_DER_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
-
-/**
- * Verifies a Discord interaction request signature using Ed25519.
- * Exported for testing.
- */
-export function verifyDiscordSignature(
-  body: string,
-  signature: string,
-  timestamp: string,
-  publicKeyHex: string
-): boolean {
-  try {
-    const publicKey = createPublicKey({
-      key: Buffer.concat([ED25519_DER_PREFIX, Buffer.from(publicKeyHex, 'hex')]),
-      format: 'der',
-      type: 'spki'
-    })
-
-    const message = Buffer.from(timestamp + body)
-    const sig = Buffer.from(signature, 'hex')
-
-    return verify(null, message, publicKey, sig)
-  } catch {
-    return false
   }
 }

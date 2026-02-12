@@ -73,26 +73,18 @@ export function loadConfig(): ClaudePipeConfig {
         telegram: {
           enabled: telegramEnabled,
           token: telegramEnabled ? s.token : '',
-          allowFrom: telegramEnabled ? s.allowFrom : [],
-          webhookSecret: telegramEnabled ? (s.webhook?.secret ?? '') : ''
+          allowFrom: telegramEnabled ? s.allowFrom : []
         },
         discord: {
           enabled: discordEnabled,
           token: discordEnabled ? s.token : '',
           allowFrom: discordEnabled ? s.allowFrom : [],
-          allowChannels: discordEnabled ? s.allowChannels : undefined,
-          webhookSecret: discordEnabled ? (s.webhook?.secret ?? '') : ''
+          allowChannels: discordEnabled ? s.allowChannels : undefined
         },
         cli: {
           enabled: cliEnabled || process.env.CLAUDEPIPE_CLI_ENABLED === 'true',
           allowFrom: cliEnabled ? s.allowFrom : parseCsv(process.env.CLAUDEPIPE_CLI_ALLOW_FROM)
         }
-      },
-      webhook: {
-        enabled: s.webhook?.enabled ?? false,
-        port: s.webhook?.port ?? 3000,
-        host: '0.0.0.0',
-        url: s.webhook?.url ?? ''
       },
       summaryPrompt: {
         enabled: true,
@@ -116,27 +108,19 @@ export function loadConfig(): ClaudePipeConfig {
         telegram: {
           enabled: process.env.CLAUDEPIPE_TELEGRAM_ENABLED === 'true',
         token: process.env.CLAUDEPIPE_TELEGRAM_TOKEN ?? '',
-        allowFrom: parseCsv(process.env.CLAUDEPIPE_TELEGRAM_ALLOW_FROM),
-        webhookSecret: process.env.CLAUDEPIPE_TELEGRAM_WEBHOOK_SECRET ?? ''
+        allowFrom: parseCsv(process.env.CLAUDEPIPE_TELEGRAM_ALLOW_FROM)
       },
         discord: {
           enabled: process.env.CLAUDEPIPE_DISCORD_ENABLED === 'true',
           token: process.env.CLAUDEPIPE_DISCORD_TOKEN ?? '',
           allowFrom: parseCsv(process.env.CLAUDEPIPE_DISCORD_ALLOW_FROM),
-          allowChannels: parseCsv(process.env.CLAUDEPIPE_DISCORD_ALLOW_CHANNELS),
-          webhookSecret: process.env.CLAUDEPIPE_DISCORD_WEBHOOK_SECRET ?? ''
+          allowChannels: parseCsv(process.env.CLAUDEPIPE_DISCORD_ALLOW_CHANNELS)
         },
         cli: {
           enabled: process.env.CLAUDEPIPE_CLI_ENABLED === 'true',
           allowFrom: parseCsv(process.env.CLAUDEPIPE_CLI_ALLOW_FROM)
         }
       },
-    webhook: {
-      enabled: process.env.CLAUDEPIPE_WEBHOOK_ENABLED === 'true',
-      port: Number(process.env.CLAUDEPIPE_WEBHOOK_PORT ?? 3000),
-      host: process.env.CLAUDEPIPE_WEBHOOK_HOST ?? '0.0.0.0',
-      url: process.env.CLAUDEPIPE_WEBHOOK_URL ?? ''
-    },
     summaryPrompt: {
       enabled: process.env.CLAUDEPIPE_SUMMARY_PROMPT_ENABLED !== 'false',
       template: process.env.CLAUDEPIPE_SUMMARY_PROMPT_TEMPLATE ?? defaultSummaryTemplate

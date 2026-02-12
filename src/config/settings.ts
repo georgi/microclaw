@@ -18,12 +18,6 @@ export interface Settings {
   allowChannels?: string[]
   model: string
   workspace: string
-  webhook?: {
-    enabled: boolean
-    port: number
-    url: string
-    secret: string
-  }
 }
 
 function defaultConfigDir(): string {

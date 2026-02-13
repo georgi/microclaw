@@ -1,8 +1,8 @@
 # claude-pipe
 
-Talk to [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or Codex through Telegram, Discord, or a local CLI channel. Send a message, and Claude (Codex) responds.
+Claude Pipe is a personal AI assistant you run on your own devices. It answers you on the channels you already use (Telegram, Discord). The assistant runs locally on your machine or server and connects directly to [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex](https://developers.openai.com/codex/cli/)
 
-Runs locally on your machine or on your server. Inspired by [openclaw/openclaw](https://github.com/openclaw/openclaw).
+Inspired by [openclaw/openclaw](https://github.com/openclaw/openclaw).
 
 ## What it does
 

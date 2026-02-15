@@ -161,8 +161,17 @@ npm run test     # run tests in watch mode
 npm run test:run # run tests once
 ```
 
+## Features
+
+- **Multi-channel support**: Works with Telegram, Discord, and CLI
+- **Media attachments**: Supports images, videos, documents, and audio files from both Telegram and Discord
+  - Images and files are described to the agent with their locations
+  - The agent can reference attached files in its workspace
+- **Voice transcription**: Voice messages in Telegram are automatically transcribed using whisper-cpp
+- **Session continuity**: Conversations persist across restarts with saved session state
+- **Workspace access**: The agent can read/edit files, run commands, and search the web within your configured workspace
+
 ## Current limitations
 
-- Text only — no images, voice messages, or file attachments yet
 - Runs locally, not designed for server deployment
 - No scheduled or background tasks

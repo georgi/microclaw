@@ -31,13 +31,43 @@ type TelegramAudio = {
   performer?: string
 }
 
+type TelegramPhotoSize = {
+  file_id: string
+  file_unique_id: string
+  width: number
+  height: number
+  file_size?: number
+}
+
+type TelegramDocument = {
+  file_id: string
+  file_unique_id: string
+  file_name?: string
+  mime_type?: string
+  file_size?: number
+}
+
+type TelegramVideo = {
+  file_id: string
+  file_unique_id: string
+  width: number
+  height: number
+  duration: number
+  mime_type?: string
+  file_size?: number
+}
+
 type TelegramUpdate = {
   update_id: number
   message?: {
     message_id: number
     text?: string
+    caption?: string
     voice?: TelegramVoice
     audio?: TelegramAudio
+    photo?: TelegramPhotoSize[]
+    document?: TelegramDocument
+    video?: TelegramVideo
     chat: { id: number }
     from?: { id: number }
   }
@@ -218,11 +248,77 @@ export class TelegramChannel implements Channel {
     await this.sendChatAction(chatId, 'typing')
 
     let content: string
+    const attachments: InboundMessage['attachments'] = []
 
+    // Process voice or audio messages
     if (message.voice || message.audio) {
       content = await this.processAudioMessage(message)
     } else {
-      content = message.text?.trim() || '[empty message]'
+      content = message.text?.trim() || message.caption?.trim() || '[empty message]'
+    }
+
+    // Process photo attachments
+    if (message.photo && message.photo.length > 0) {
+      // Telegram sends multiple sizes; use the largest one
+      const largestPhoto = message.photo.reduce((prev, current) =>
+        (current.file_size ?? 0) > (prev.file_size ?? 0) ? current : prev
+      )
+      const filePath = await this.getFilePath(largestPhoto.file_id)
+      if (filePath) {
+        const token = this.config.channels.telegram.token
+        const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`
+        attachments.push({
+          type: 'image',
+          url: fileUrl,
+          filename: filePath.split('/').pop() || 'photo.jpg',
+          ...(largestPhoto.file_size !== undefined ? { size: largestPhoto.file_size } : {})
+        })
+        this.logger.info('channel.telegram.photo_attached', {
+          fileId: largestPhoto.file_id,
+          size: largestPhoto.file_size
+        })
+      }
+    }
+
+    // Process document attachments
+    if (message.document) {
+      const filePath = await this.getFilePath(message.document.file_id)
+      if (filePath) {
+        const token = this.config.channels.telegram.token
+        const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`
+        attachments.push({
+          type: 'document',
+          url: fileUrl,
+          filename: message.document.file_name || filePath.split('/').pop() || 'document',
+          ...(message.document.mime_type !== undefined ? { mimeType: message.document.mime_type } : {}),
+          ...(message.document.file_size !== undefined ? { size: message.document.file_size } : {})
+        })
+        this.logger.info('channel.telegram.document_attached', {
+          fileId: message.document.file_id,
+          filename: message.document.file_name,
+          size: message.document.file_size
+        })
+      }
+    }
+
+    // Process video attachments
+    if (message.video) {
+      const filePath = await this.getFilePath(message.video.file_id)
+      if (filePath) {
+        const token = this.config.channels.telegram.token
+        const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`
+        attachments.push({
+          type: 'video',
+          url: fileUrl,
+          filename: filePath.split('/').pop() || 'video.mp4',
+          ...(message.video.mime_type !== undefined ? { mimeType: message.video.mime_type } : {}),
+          ...(message.video.file_size !== undefined ? { size: message.video.file_size } : {})
+        })
+        this.logger.info('channel.telegram.video_attached', {
+          fileId: message.video.file_id,
+          size: message.video.file_size
+        })
+      }
     }
 
     const inbound: InboundMessage = {
@@ -231,6 +327,7 @@ export class TelegramChannel implements Channel {
       chatId,
       content,
       timestamp: new Date().toISOString(),
+      ...(attachments.length > 0 ? { attachments } : {}),
       metadata: {
         messageId: message.message_id
       }
